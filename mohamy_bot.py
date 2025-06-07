@@ -1,4 +1,5 @@
 import os
+import asyncio
 from telegram import Update, ReplyKeyboardMarkup, ReplyKeyboardRemove
 from telegram.ext import (
     Application,
@@ -8,10 +9,10 @@ from telegram.ext import (
     filters
 )
 
-# ========== إعدادات أساسية ==========
-TOKEN = os.environ.get('TOKEN')  # التوكن من متغيرات البيئة في Render
+# التوكن من متغير البيئة (يجب إضافته في إعدادات Render)
+TOKEN = os.environ.get('TOKEN')
 
-# ========== لوحات المفاتيح ==========
+# ========== لوحات المفاتيح الكاملة كما طلبت ==========
 def main_keyboard():
     return ReplyKeyboardMarkup([
         ["استشارة قانونية تلقائية", "خدماتنا المدفوعة"],
@@ -36,7 +37,7 @@ def payment_confirmation_keyboard():
         ["نعم، اريد المتابعة للدفع", "لا، شكراً"]
     ], resize_keyboard=True)
 
-# ========== معالجة الأوامر ==========
+# ========== جميع معالجات الرسائل كما طلبت ==========
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     welcome_msg = """🔒 **مرحبًا بك في بوت محامي.كوم - المنصة القانونية الآمنة** ⚖️
 
@@ -84,6 +85,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             "- صياغة العقود وفقاً للقوانين العراقية\n"
             "- مراجعة العقود القائمة\n"
             "- تقديم نصائح قانونية لحماية حقوقك\n\n"
+            "السعر: 150 ريال\n"
             "هل تريد المتابعة للدفع؟",
             reply_markup=payment_confirmation_keyboard(),
             parse_mode="Markdown"
@@ -99,6 +101,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             "- دراسة الموقف القانوني\n"
             "- إعداد المذكرات واللوائح\n"
             "- متابعة الإجراءات القضائية\n\n"
+            "السعر: 500 ريال\n"
             "هل تريد المتابعة للدفع؟",
             reply_markup=payment_confirmation_keyboard(),
             parse_mode="Markdown"
@@ -114,6 +117,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             "- جلسة استشارية خاصة مع محامي متخصص\n"
             "- تحليل قانوني مفصل لقضيتك\n"
             "- تقديم خيارات قانونية عملية\n\n"
+            "السعر: 200 ريال\n"
             "هل تريد المتابعة للدفع؟",
             reply_markup=payment_confirmation_keyboard(),
             parse_mode="Markdown"
@@ -124,7 +128,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         price = context.user_data.get('service_price', 0)
         
         if service and price > 0:
-            payment_link = create_payment_link(service, price)
+            payment_link = f"https://payment.mohamy.com/?service={service.replace(' ', '_')}&amount={price}"
             await update.message.reply_text(
                 f"🔐 **تفاصيل الدفع**\n\n"
                 f"الخدمة: {service}\n"
@@ -140,9 +144,9 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 reply_markup=main_keyboard()
             )
     
-    elif text in ["لا، شكراً", "العودة للرئيسية"]:
+    elif text == "لا، شكراً":
         await update.message.reply_text(
-            "تم العودة للقائمة الرئيسية",
+            "تم إلغاء الطلب، يمكنك العودة للقائمة الرئيسية",
             reply_markup=main_keyboard()
         )
     
@@ -172,38 +176,49 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             "- نشر الوعي القانوني\n\n"
             "فريقنا: اكثر من 13 محامياً معتمداً"
         )
-
-def create_payment_link(service_name, amount):
-    """إنشاء رابط دفع تجريبي (يمكن استبداله برابط حقيقي)"""
-    return f"https://payment.mohamy.com/?service={service_name.replace(' ', '_')}&amount={amount}"
-
-async def post_init(application: Application):
-    """وظيفة لتنظيف أي Webhook قديم عند التشغيل"""
-    await application.bot.delete_webhook()
-    print("✅ تم تنظيف Webhook القديم")
-
-def main():
-    print("🚀 جاري تشغيل بوت محامي.كوم...")
     
+    elif text == "العودة للرئيسية":
+        await update.message.reply_text(
+            "تم العودة للقائمة الرئيسية",
+            reply_markup=main_keyboard()
+        )
+
+# ========== حلول تقنية لمنع التعارضات ==========
+async def cleanup_before_start(application: Application):
+    """تنظيف جميع الإعدادات السابقة قبل التشغيل"""
+    await application.bot.delete_webhook(drop_pending_updates=True)
+    await asyncio.sleep(3)  # انتظار لضمان اكتمال التنظيف
+    print("✅ تم تنظيف جميع النسخ السابقة")
+
+async def run_bot():
+    """الدالة الرئيسية لتشغيل البوت"""
     try:
-        # إعداد البوت مع تأكيد تنظيف Webhook
+        # 1. بناء التطبيق مع التنظيف المسبق
         application = (
             Application.builder()
             .token(TOKEN)
-            .post_init(post_init)
+            .post_init(cleanup_before_start)
             .build()
         )
-        
-        # إضافة المعالجين
+
+        # 2. إضافة جميع المعالجين
         application.add_handler(CommandHandler("start", start))
         application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
-        
-        print("✅ البوت يعمل في وضع Polling!")
-        print("⏳ جاري الاستماع للرسائل...")
-        application.run_polling()
-        
+
+        # 3. تشغيل البوت
+        print("🚀 البوت يعمل الآن!")
+        await application.run_polling(
+            drop_pending_updates=True,
+            timeout=20,
+            close_loop=False
+        )
+
     except Exception as e:
-        print(f"❌ خطأ غير متوقع: {e}")
+        print(f"❌ خطأ: {e}")
+        # إعادة التشغيل بعد 5 ثواني
+        await asyncio.sleep(5)
+        await run_bot()
 
 if __name__ == "__main__":
-    main()
+    # تشغيل البوت مع التعامل مع الأخطاء
+    asyncio.run(run_bot())
