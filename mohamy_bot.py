@@ -8,7 +8,7 @@ from telegram.ext import (
     filters
 )
 
-# الحصول على التوكن من متغير البيئة (آمن للسحابة)
+# التوكن من متغير البيئة (سيتم إضافته في Render)
 TOKEN = os.environ.get('TOKEN')
 
 # ========== لوحات المفاتيح ==========
@@ -74,7 +74,6 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             reply_markup=paid_services_keyboard()
         )
     
-    # --- معالجة الخدمات المدفوعة ---
     elif text == "صياغة العقود الشخصية والحكومية":
         context.user_data['selected_service'] = "صياغة العقود الشخصية والحكومية"
         context.user_data['service_price'] = 150
@@ -120,7 +119,6 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             parse_mode="Markdown"
         )
     
-    # --- معالجة تأكيد الدفع ---
     elif text == "نعم، اريد المتابعة للدفع":
         service = context.user_data.get('selected_service', '')
         price = context.user_data.get('service_price', 0)
@@ -148,12 +146,11 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             reply_markup=main_keyboard()
         )
     
-    # --- بقية الخيارات ---
     elif text == "تواصل مع فريق المحامين":
         await update.message.reply_text(
             "📞 للتواصل المباشر:\n"
             "واتساب: +9647775535047\n"
-            "ايميل: ###@mohamy.com\n\n"
+            "ايميل: contact@mohamy.com\n\n"
             "ساعات العمل للاستشارات الخاصة: 6م-10م (توقيت بغداد)"
         )
     
@@ -173,7 +170,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             "- استشارات قانونية فورية\n"
             "- خدمات قانونية مميزة\n"
             "- نشر الوعي القانوني\n\n"
-            "فريقنا: مجموعة من المحامين والحقوقيين المتخصصينً"
+            "فريقنا: اكثر من 13 محامياً معتمداً"
         )
     
     elif text == "العودة للرئيسية":
@@ -182,27 +179,35 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             reply_markup=main_keyboard()
         )
 
-# ========== دعم الدفع ==========
 def create_payment_link(service_name, amount):
-    """إنشاء رابط دفع تجريبي (ستحتاج لربط هذا مع بوابة دفع حقيقية لاحقاً)"""
+    """إنشاء رابط دفع تجريبي"""
     return f"https://payment.mohamy.com/?service={service_name.replace(' ', '_')}&amount={amount}"
 
-# ========== إعداد البوت ==========
 def main():
     print("🚀 جاري تشغيل بوت محامي.كوم...")
     
     try:
-        # إنشاء التطبيق مع التوكن
+        # إعداد البوت مع دعم منفذ Render
+        port = int(os.environ.get('PORT', 10000))
         application = Application.builder().token(TOKEN).build()
         
-        # إضافة المعالجين
         application.add_handler(CommandHandler("start", start))
         application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
         
-        print("✅ البوت يعمل الآن! اذهب إلى Telegram وابدأ المحادثة مع البوت")
-        print("⏳ جاري بدء الاستماع للرسائل...")
-        application.run_polling()
+        print(f"✅ البوت يعمل الآن على المنفذ {port if 'PORT' in os.environ else 'Polling'}")
+        print("⏳ جاري بدء الاستماع...")
         
+        # التشغيل مع دعم Render
+        if "PORT" in os.environ:
+            application.run_webhook(
+                listen="0.0.0.0",
+                port=port,
+                url_path=TOKEN,
+                webhook_url=f"https://your-render-url.onrender.com/{TOKEN}"
+            )
+        else:
+            application.run_polling()
+            
     except Exception as e:
         print(f"❌ حدث خطأ: {e}")
 
