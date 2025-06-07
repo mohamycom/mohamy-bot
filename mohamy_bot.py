@@ -7,10 +7,9 @@ from telegram.ext import (
     ContextTypes,
     filters
 )
-from flask import Flask  # إضافة جديدة
 
-# التوكن من متغير البيئة (سيتم إضافته في Render)
-TOKEN = os.environ.get('TOKEN')
+# ========== إعدادات أساسية ==========
+TOKEN = os.environ.get('TOKEN')  # التوكن من متغيرات البيئة في Render
 
 # ========== لوحات المفاتيح ==========
 def main_keyboard():
@@ -141,9 +140,9 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 reply_markup=main_keyboard()
             )
     
-    elif text == "لا، شكراً":
+    elif text in ["لا، شكراً", "العودة للرئيسية"]:
         await update.message.reply_text(
-            "تم إلغاء الطلب، يمكنك العودة للقائمة الرئيسية",
+            "تم العودة للقائمة الرئيسية",
             reply_markup=main_keyboard()
         )
     
@@ -173,47 +172,38 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             "- نشر الوعي القانوني\n\n"
             "فريقنا: اكثر من 13 محامياً معتمداً"
         )
-    
-    elif text == "العودة للرئيسية":
-        await update.message.reply_text(
-            "تم العودة للقائمة الرئيسية",
-            reply_markup=main_keyboard()
-        )
 
 def create_payment_link(service_name, amount):
-    """إنشاء رابط دفع تجريبي"""
+    """إنشاء رابط دفع تجريبي (يمكن استبداله برابط حقيقي)"""
     return f"https://payment.mohamy.com/?service={service_name.replace(' ', '_')}&amount={amount}"
+
+async def post_init(application: Application):
+    """وظيفة لتنظيف أي Webhook قديم عند التشغيل"""
+    await application.bot.delete_webhook()
+    print("✅ تم تنظيف Webhook القديم")
 
 def main():
     print("🚀 جاري تشغيل بوت محامي.كوم...")
     
     try:
-        # إعداد البوت
-        application = Application.builder().token(TOKEN).build()
+        # إعداد البوت مع تأكيد تنظيف Webhook
+        application = (
+            Application.builder()
+            .token(TOKEN)
+            .post_init(post_init)
+            .build()
+        )
         
         # إضافة المعالجين
         application.add_handler(CommandHandler("start", start))
         application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
         
-        # حل خاص لـ Render
-        port = int(os.environ.get('PORT', 10000))
-        if "PORT" in os.environ:
-            # هذا الجزء فقط لإرضاء Render بدون استخدام ويب هوك فعلي
-            app = Flask(__name__)
-            
-            @app.route('/')
-            def home():
-                return "Bot is running on Render (Polling Mode)"
-            
-            import threading
-            threading.Thread(target=app.run, kwargs={'port': port, 'host': '0.0.0.0'}).start()
-        
-        print(f"✅ البوت يعمل الآن! (وهميًا على المنفذ {port})")
-        print("⏳ جاري بدء الاستماع للرسائل...")
+        print("✅ البوت يعمل في وضع Polling!")
+        print("⏳ جاري الاستماع للرسائل...")
         application.run_polling()
         
     except Exception as e:
-        print(f"❌ حدث خطأ: {e}")
+        print(f"❌ خطأ غير متوقع: {e}")
 
 if __name__ == "__main__":
     main()
