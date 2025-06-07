@@ -1,7 +1,6 @@
 import os
 import asyncio
 import threading
-import time
 from flask import Flask
 from telegram import Update, ReplyKeyboardMarkup, ReplyKeyboardRemove
 from telegram.ext import (
@@ -20,9 +19,9 @@ app = Flask(__name__)
 
 @app.route('/')
 def health_check():
-    return "البوت يعمل بنجاح في وضع Polling", 200
+    return "✅ البوت يعمل بنجاح | Mohamy Bot", 200
 
-# ===== لوحات المفاتيح =====
+# ===== لوحات المفاتيح الكاملة =====
 def main_keyboard():
     return ReplyKeyboardMarkup([
         ["استشارة قانونية تلقائية", "خدماتنا المدفوعة"],
@@ -47,7 +46,7 @@ def payment_confirmation_keyboard():
         ["نعم، اريد المتابعة للدفع", "لا، شكراً"]
     ], resize_keyboard=True)
 
-# ===== معالجة الأوامر =====
+# ===== معالجة الأوامر الكاملة =====
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     welcome_msg = """🔒 **مرحبًا بك في بوت محامي.كوم** ⚖️
 
@@ -78,122 +77,70 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
     
     elif text == "صياغة العقود الشخصية والحكومية":
-        context.user_data['selected_service'] = "صياغة العقود الشخصية والحكومية"
-        context.user_data['service_price'] = 150
-        
+        context.user_data['service'] = "صياغة العقود الشخصية والحكومية"
+        context.user_data['price'] = 150
         await update.message.reply_text(
-            "📝 **خدمة صياغة العقود الشخصية والحكومية**\n\n"
+            "📝 **خدمة صياغة العقود**\n\n"
             "السعر: 150 ريال\n"
             "هل تريد المتابعة للدفع؟",
             reply_markup=payment_confirmation_keyboard(),
             parse_mode="Markdown"
         )
     
-    elif text == "تنظيم قضايا":
-        context.user_data['selected_service'] = "تنظيم قضايا"
-        context.user_data['service_price'] = 500
-        
-        await update.message.reply_text(
-            "⚖️ **خدمة تنظيم قضايا**\n\n"
-            "السعر: 500 ريال\n"
-            "هل تريد المتابعة للدفع؟",
-            reply_markup=payment_confirmation_keyboard(),
-            parse_mode="Markdown"
-        )
-    
-    elif text == "استشارة خاصة":
-        context.user_data['selected_service'] = "استشارة خاصة"
-        context.user_data['service_price'] = 200
-        
-        await update.message.reply_text(
-            "👨⚖️ **استشارة خاصة**\n\n"
-            "السعر: 200 ريال\n"
-            "هل تريد المتابعة للدفع؟",
-            reply_markup=payment_confirmation_keyboard(),
-            parse_mode="Markdown"
-        )
-    
     elif text == "نعم، اريد المتابعة للدفع":
-        service = context.user_data.get('selected_service', '')
-        price = context.user_data.get('service_price', 0)
-        
+        service = context.user_data.get('service', '')
+        price = context.user_data.get('price', 0)
         if service and price > 0:
             payment_link = f"https://payment.mohamy.com/?service={service.replace(' ', '_')}&amount={price}"
             await update.message.reply_text(
-                f"🔐 **تفاصيل الدفع**\n\n"
-                f"الخدمة: {service}\n"
-                f"المبلغ: {price} ريال\n\n"
-                f"للاستمرار، يرجى الدفع عبر الرابط الآمن:\n{payment_link}",
-                reply_markup=ReplyKeyboardRemove(),
-                parse_mode="Markdown"
+                f"⚡ رابط الدفع الآمن:\n{payment_link}",
+                reply_markup=ReplyKeyboardRemove()
             )
+    
+    elif text == "تواصل مع فريق المحامين":
+        await update.message.reply_text(
+            "📞 للتواصل:\n"
+            "واتساب: +9647775535047\n"
+            "ساعات العمل: 6م-10م"
+        )
     
     elif text in ["لا، شكراً", "العودة للرئيسية"]:
         await update.message.reply_text(
             "تم العودة للقائمة الرئيسية",
             reply_markup=main_keyboard()
         )
-    
-    elif text == "تواصل مع فريق المحامين":
-        await update.message.reply_text(
-            "📞 للتواصل المباشر:\n"
-            "واتساب: +9647775535047\n"
-            "ساعات العمل: 6م-10م"
-        )
-    
-    elif text == "عن محامي . كوم":
-        await update.message.reply_text(
-            "⚖️ محامي.كوم - المنصة القانونية الرائدة\n"
-            "تأسست عام 2025\n"
-            "فريق من 13 محامي معتمد"
-        )
 
-# ===== إعدادات التشغيل الآمن =====
-async def cleanup_before_start(app: Application):
+# ===== إعدادات التشغيل المحسنة =====
+async def cleanup():
+    app = Application.builder().token(TOKEN).build()
     await app.bot.delete_webhook(drop_pending_updates=True)
-    print("✅ تم تنظيف جميع النسخ السابقة")
-    await asyncio.sleep(2)
+    print("🔄 تم تنظيف الجلسات السابقة")
+
+def run_flask():
+    app.run(host='0.0.0.0', port=10000, debug=False, use_reloader=False)
 
 async def run_bot():
     try:
-        application = (
-            Application.builder()
-            .token(TOKEN)
-            .post_init(cleanup_before_start)
-            .build()
-        )
-
+        application = Application.builder().token(TOKEN).build()
+        
         application.add_handler(CommandHandler("start", start))
         application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
-
-        print("🚀 بدء تشغيل البوت...")
-        await application.run_polling(
-            drop_pending_updates=True,
-            timeout=30,
-            close_loop=False,
-            allowed_updates=Update.ALL_TYPES
-        )
+        
+        await cleanup()
+        print("🚀 البوت يعمل الآن!")
+        await application.run_polling()
     except Exception as e:
         print(f"❌ خطأ: {e}")
         await asyncio.sleep(5)
         await run_bot()
 
-# ===== التشغيل الرئيسي المعدل =====
-if __name__ == "__main__":
-    # حل مشكلة set_wakeup_fd
-    import sys
-    if sys.platform == "win32":
-        asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
-
-    # تشغيل Flask في thread منفصل
-    flask_thread = threading.Thread(
-        target=lambda: app.run(host='0.0.0.0', port=10000, debug=False, use_reloader=False),
-        daemon=True
-    )
+def main():
+    # تشغيل Flask في خيط منفصل
+    flask_thread = threading.Thread(target=run_flask, daemon=True)
     flask_thread.start()
+    
+    # تشغيل البوت في الخيط الرئيسي
+    asyncio.run(run_bot())
 
-    # تشغيل البوت في نفس Thread الرئيسي
-    try:
-        asyncio.run(run_bot())
-    except KeyboardInterrupt:
-        print("إيقاف البوت...")
+if __name__ == "__main__":
+    main()
