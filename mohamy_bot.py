@@ -13,7 +13,7 @@ from telegram.ext import (
 )
 
 # ===== إعدادات التوكن =====
-TOKEN = os.environ.get('TOKEN')  # يُسحب من متغيرات البيئة في Render
+TOKEN = os.environ.get('TOKEN')
 
 # ===== تطبيق Flask لاشتراطات Render =====
 app = Flask(__name__)
@@ -178,25 +178,22 @@ async def run_bot():
         await asyncio.sleep(5)
         await run_bot()
 
-def run_async():
-    loop = asyncio.new_event_loop()
-    asyncio.set_event_loop(loop)
-    loop.run_until_complete(run_bot())
-
-# ===== التشغيل الرئيسي =====
+# ===== التشغيل الرئيسي المعدل =====
 if __name__ == "__main__":
-    # تشغيل Flask في خلفية منفصلة
+    # حل مشكلة set_wakeup_fd
+    import sys
+    if sys.platform == "win32":
+        asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
+
+    # تشغيل Flask في thread منفصل
     flask_thread = threading.Thread(
-        target=lambda: app.run(host='0.0.0.0', port=10000, debug=False, use_reloader=False)
+        target=lambda: app.run(host='0.0.0.0', port=10000, debug=False, use_reloader=False),
+        daemon=True
     )
-    flask_thread.daemon = True
     flask_thread.start()
 
-    # تشغيل البوت في thread منفصل
-    bot_thread = threading.Thread(target=run_async)
-    bot_thread.daemon = True
-    bot_thread.start()
-
-    # إبقاء البرنامج الرئيسي يعمل
-    while True:
-        time.sleep(1)
+    # تشغيل البوت في نفس Thread الرئيسي
+    try:
+        asyncio.run(run_bot())
+    except KeyboardInterrupt:
+        print("إيقاف البوت...")
