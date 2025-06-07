@@ -7,10 +7,7 @@ from telegram.ext import (
     filters
 )
 
-TOKEN = "7985569515:AAEq1TkhpeXFJDhoVhLuDys1ODZeWqWVYr4"
-
-# ========== لوحات المفاتيح ==========
-def main_keyboard():
+TOKEN = "ef main_keyboard():
     return ReplyKeyboardMarkup([
         ["استشارة قانونية تلقائية", "خدماتنا المدفوعة"],
         ["تواصل مع فريق المحامين", "تعرف على حقوقك"],
