@@ -7,6 +7,7 @@ from telegram.ext import (
     ContextTypes,
     filters
 )
+from flask import Flask  # إضافة جديدة
 
 # التوكن من متغير البيئة (سيتم إضافته في Render)
 TOKEN = os.environ.get('TOKEN')
@@ -187,27 +188,30 @@ def main():
     print("🚀 جاري تشغيل بوت محامي.كوم...")
     
     try:
-        # إعداد البوت مع دعم منفذ Render
-        port = int(os.environ.get('PORT', 10000))
+        # إعداد البوت
         application = Application.builder().token(TOKEN).build()
         
+        # إضافة المعالجين
         application.add_handler(CommandHandler("start", start))
         application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
         
-        print(f"✅ البوت يعمل الآن على المنفذ {port if 'PORT' in os.environ else 'Polling'}")
-        print("⏳ جاري بدء الاستماع...")
-        
-        # التشغيل مع دعم Render
+        # حل خاص لـ Render
+        port = int(os.environ.get('PORT', 10000))
         if "PORT" in os.environ:
-            application.run_webhook(
-                listen="0.0.0.0",
-                port=port,
-                url_path=TOKEN,
-                webhook_url=f"https://your-render-url.onrender.com/{TOKEN}"
-            )
-        else:
-            application.run_polling()
+            # هذا الجزء فقط لإرضاء Render بدون استخدام ويب هوك فعلي
+            app = Flask(__name__)
             
+            @app.route('/')
+            def home():
+                return "Bot is running on Render (Polling Mode)"
+            
+            import threading
+            threading.Thread(target=app.run, kwargs={'port': port, 'host': '0.0.0.0'}).start()
+        
+        print(f"✅ البوت يعمل الآن! (وهميًا على المنفذ {port})")
+        print("⏳ جاري بدء الاستماع للرسائل...")
+        application.run_polling()
+        
     except Exception as e:
         print(f"❌ حدث خطأ: {e}")
 
