@@ -151,6 +151,25 @@ async def run_bot():
         print(f"⚠️ خطأ: {e}")
         await asyncio.sleep(5)
         await run_bot()
+# ========== حل مؤقت لاشتراطات Render ==========
+from flask import Flask
+app = Flask(__name__)
 
+@app.route('/')
+def health_check():
+    return "Bot is running in polling mode", 200
+
+def run_flask_app():
+    app.run(host='0.0.0.0', port=10000)
+
+if __name__ == "__main__":
+    import threading
+    # تشغيل Flask في thread منفصل
+    flask_thread = threading.Thread(target=run_flask_app)
+    flask_thread.daemon = True
+    flask_thread.start()
+    
+    # تشغيل البوت الرئيسي
+    asyncio.run(run_bot())
 if __name__ == "__main__":
     asyncio.run(run_bot())
