@@ -20,16 +20,25 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(f"تم استلام: {update.message.text}")
 
-async def main():
+def main():
     print("🚀 جاري تشغيل البوت...")
-    app = Application.builder().token(TOKEN).build()
     
-    app.add_handler(CommandHandler("start", start))
-    app.add_handler(MessageHandler(filters.TEXT, handle_message))
+    # إنشاء event loop جديد
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
     
-    await app.bot.delete_webhook()
-    print("✅ البوت يعمل الآن!")
-    await app.run_polling()
+    try:
+        app = Application.builder().token(TOKEN).build()
+        
+        app.add_handler(CommandHandler("start", start))
+        app.add_handler(MessageHandler(filters.TEXT, handle_message))
+        
+        print("✅ البوت يعمل الآن!")
+        loop.run_until_complete(app.run_polling())
+    except Exception as e:
+        print(f"❌ خطأ: {e}")
+    finally:
+        loop.close()
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    main()
