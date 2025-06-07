@@ -1,5 +1,8 @@
 import os
 import asyncio
+import threading
+import time
+from flask import Flask
 from telegram import Update, ReplyKeyboardMarkup, ReplyKeyboardRemove
 from telegram.ext import (
     Application,
@@ -9,10 +12,17 @@ from telegram.ext import (
     filters
 )
 
-# ========== إعداد التوكن ==========
-TOKEN = os.environ.get('TOKEN')  # يُسحب من متغيرات البيئة
+# ===== إعدادات التوكن =====
+TOKEN = os.environ.get('TOKEN')  # يُسحب من متغيرات البيئة في Render
 
-# ========== لوحات المفاتيح ==========
+# ===== تطبيق Flask لاشتراطات Render =====
+app = Flask(__name__)
+
+@app.route('/')
+def health_check():
+    return "Bot is running in polling mode", 200
+
+# ===== لوحات المفاتيح =====
 def main_keyboard():
     return ReplyKeyboardMarkup([
         ["استشارة قانونية تلقائية", "خدماتنا المدفوعة"],
@@ -37,7 +47,7 @@ def payment_confirmation_keyboard():
         ["نعم، اريد المتابعة للدفع", "لا، شكراً"]
     ], resize_keyboard=True)
 
-# ========== معالجة الأوامر ==========
+# ===== معالجة الأوامر =====
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     welcome_msg = """🔒 **مرحبًا بك في بوت محامي.كوم** ⚖️
 
@@ -60,36 +70,63 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     elif text == "خدماتنا المدفوعة":
         await update.message.reply_text(
             "الخدمات المميزة المتاحة:\n\n"
-            "1. صياغة العقود\n"
+            "1. صياغة العقود الشخصية والحكومية\n"
             "2. تنظيم قضايا\n"
             "3. استشارة خاصة\n\n"
-            "اختر الخدمة:",
+            "اختر الخدمة التي تريدها:",
             reply_markup=paid_services_keyboard()
         )
     
     elif text == "صياغة العقود الشخصية والحكومية":
-        context.user_data['service'] = "صياغة العقود"
-        context.user_data['price'] = 150
+        context.user_data['selected_service'] = "صياغة العقود الشخصية والحكومية"
+        context.user_data['service_price'] = 150
+        
         await update.message.reply_text(
-            "📝 **خدمة صياغة العقود**\n\n"
-            "تشمل:\n"
-            "- صياغة العقود وفق القوانين\n"
-            "- مراجعة العقود القائمة\n"
-            "- نصائح قانونية\n\n"
-            "💰 السعر: 150 ريال\n"
-            "هل تريد المتابعة؟",
+            "📝 **خدمة صياغة العقود الشخصية والحكومية**\n\n"
+            "السعر: 150 ريال\n"
+            "هل تريد المتابعة للدفع؟",
+            reply_markup=payment_confirmation_keyboard(),
+            parse_mode="Markdown"
+        )
+    
+    elif text == "تنظيم قضايا":
+        context.user_data['selected_service'] = "تنظيم قضايا"
+        context.user_data['service_price'] = 500
+        
+        await update.message.reply_text(
+            "⚖️ **خدمة تنظيم قضايا**\n\n"
+            "السعر: 500 ريال\n"
+            "هل تريد المتابعة للدفع؟",
+            reply_markup=payment_confirmation_keyboard(),
+            parse_mode="Markdown"
+        )
+    
+    elif text == "استشارة خاصة":
+        context.user_data['selected_service'] = "استشارة خاصة"
+        context.user_data['service_price'] = 200
+        
+        await update.message.reply_text(
+            "👨⚖️ **استشارة خاصة**\n\n"
+            "السعر: 200 ريال\n"
+            "هل تريد المتابعة للدفع؟",
             reply_markup=payment_confirmation_keyboard(),
             parse_mode="Markdown"
         )
     
     elif text == "نعم، اريد المتابعة للدفع":
-        service = context.user_data.get('service', 'غير محدد')
-        price = context.user_data.get('price', 0)
-        payment_link = f"https://payment.mohamy.com/pay?service={service}&amount={price}"
-        await update.message.reply_text(
-            f"⚡ رابط الدفع الآمن:\n{payment_link}",
-            reply_markup=ReplyKeyboardRemove()
-        )
+        service = context.user_data.get('selected_service', '')
+        price = context.user_data.get('service_price', 0)
+        
+        if service and price > 0:
+            payment_link = f"https://payment.mohamy.com/?service={service.replace(' ', '_')}&amount={price}"
+            await update.message.reply_text(
+                f"🔐 **تفاصيل الدفع**\n\n"
+                f"الخدمة: {service}\n"
+                f"المبلغ: {price} ريال\n\n"
+                f"للاستمرار، يرجى الدفع عبر الرابط الآمن:\n{payment_link}",
+                reply_markup=ReplyKeyboardRemove(),
+                parse_mode="Markdown"
+            )
     
     elif text in ["لا، شكراً", "العودة للرئيسية"]:
         await update.message.reply_text(
@@ -99,18 +136,9 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     
     elif text == "تواصل مع فريق المحامين":
         await update.message.reply_text(
-            "📞 للتواصل:\n"
+            "📞 للتواصل المباشر:\n"
             "واتساب: +9647775535047\n"
             "ساعات العمل: 6م-10م"
-        )
-    
-    elif text == "تعرف على حقوقك":
-        await update.message.reply_text(
-            "📚 مواضيع قانونية:\n"
-            "1. حقوق الموظفين\n"
-            "2. حقوق المنتسبين\n"
-            "3. قضايا جنائية\n\n"
-            "اختر الموضوع:"
         )
     
     elif text == "عن محامي . كوم":
@@ -120,15 +148,13 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             "فريق من 13 محامي معتمد"
         )
 
-# ========== حلول تقنية ==========
+# ===== إعدادات التشغيل الآمن =====
 async def cleanup_before_start(app: Application):
-    """حل مشكلة التعارض النهائي"""
     await app.bot.delete_webhook(drop_pending_updates=True)
-    print("🔄 تم تنظيف جميع النسخ السابقة")
+    print("✅ تم تنظيف جميع النسخ السابقة")
     await asyncio.sleep(2)
 
 async def run_bot():
-    """الدالة الرئيسية لتشغيل البوت"""
     try:
         application = (
             Application.builder()
@@ -144,32 +170,22 @@ async def run_bot():
         await application.run_polling(
             drop_pending_updates=True,
             timeout=30,
-            close_loop=False
+            close_loop=False,
+            allowed_updates=Update.ALL_TYPES
         )
-
     except Exception as e:
-        print(f"⚠️ خطأ: {e}")
+        print(f"❌ خطأ: {e}")
         await asyncio.sleep(5)
         await run_bot()
-# ========== حل مؤقت لاشتراطات Render ==========
-from flask import Flask
-app = Flask(__name__)
 
-@app.route('/')
-def health_check():
-    return "Bot is running in polling mode", 200
-
-def run_flask_app():
-    app.run(host='0.0.0.0', port=10000)
-
+# ===== التشغيل الرئيسي =====
 if __name__ == "__main__":
-    import threading
-    # تشغيل Flask في thread منفصل
-    flask_thread = threading.Thread(target=run_flask_app)
+    # تشغيل Flask في خلفية منفصلة
+    flask_thread = threading.Thread(
+        target=lambda: app.run(host='0.0.0.0', port=10000, debug=False, use_reloader=False)
+    )
     flask_thread.daemon = True
     flask_thread.start()
-    
+
     # تشغيل البوت الرئيسي
-    asyncio.run(run_bot())
-if __name__ == "__main__":
     asyncio.run(run_bot())
