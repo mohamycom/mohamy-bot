@@ -20,7 +20,7 @@ app = Flask(__name__)
 
 @app.route('/')
 def health_check():
-    return "Bot is running in polling mode", 200
+    return "البوت يعمل بنجاح في وضع Polling", 200
 
 # ===== لوحات المفاتيح =====
 def main_keyboard():
@@ -178,6 +178,11 @@ async def run_bot():
         await asyncio.sleep(5)
         await run_bot()
 
+def run_async():
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
+    loop.run_until_complete(run_bot())
+
 # ===== التشغيل الرئيسي =====
 if __name__ == "__main__":
     # تشغيل Flask في خلفية منفصلة
@@ -187,5 +192,11 @@ if __name__ == "__main__":
     flask_thread.daemon = True
     flask_thread.start()
 
-    # تشغيل البوت الرئيسي
-    asyncio.run(run_bot())
+    # تشغيل البوت في thread منفصل
+    bot_thread = threading.Thread(target=run_async)
+    bot_thread.daemon = True
+    bot_thread.start()
+
+    # إبقاء البرنامج الرئيسي يعمل
+    while True:
+        time.sleep(1)
