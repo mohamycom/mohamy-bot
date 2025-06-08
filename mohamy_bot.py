@@ -168,7 +168,7 @@ async def main():
     await application.start()
     await application.updater.start_polling()
     
-    # 6. إعداد معالجة الإشارات للإيقاف النظيف
+    # 6. إعداد معالجة الإشارات للإيقاف النظيف - التصحيح هنا!
     loop = asyncio.get_running_loop()
     for signame in {'SIGINT', 'SIGTERM'}:
         loop.add_signal_handler(
