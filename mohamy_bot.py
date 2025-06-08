@@ -65,8 +65,10 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
 
     elif text == "صياغة العقود الشخصية والحكومية":
-        context.user_data['service'] = "صياغة العقود"
-        context.user_data['price'] = 100000  # افتراضيًا للحكومية
+        context.user_data.update({
+            'service': "صياغة العقود",
+            'price': 100000  # افتراضيًا للحكومية
+        })
         await update.message.reply_text(
             "📝 **خدمة صياغة العقود**\n\n"
             "السعر:\nالحكومية: 100,000 د.ع\nالشخصية: 250,000 د.ع\n\n"
@@ -76,8 +78,10 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
 
     elif text == "استشارة خاصة":
-        context.user_data['service'] = "استشارة خاصة"
-        context.user_data['price'] = 50000
+        context.user_data.update({
+            'service': "استشارة خاصة",
+            'price': 50000
+        })
         await update.message.reply_text(
             "💼 **استشارة خاصة**\n\n"
             "السعر: 50,000 د.ع\nهل تريد المتابعة للدفع؟",
