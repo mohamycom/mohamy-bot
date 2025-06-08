@@ -1,17 +1,26 @@
-from telegram import Update
+from telegram import Update, ReplyKeyboardMarkup
 from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, ContextTypes, filters
-
 import os
 
 TOKEN = os.environ.get("BOT_TOKEN")
 
 WELCOME_MESSAGE = (
-    "مرحبا بكم في مساعدكم (محامي.كوم) وهو بوت متخصص في تقديم الاستشارات القانونية الاحترافية التي تساعدك على فهم حقوقك واتخاذ القرار القانوني الصحيح بثقة.\n\n"
-    "لا نحتاج الى اي معلومات شخصية (مثل الاسم او العنوان او رقم الهاتف ...إلخ) وسيتم حذف الاستشارات تلقائيا من السيرفرات فور انتهاء المحادثة فلا داعي للقلق حيال ذلك."
+    "(محامي.كوم) هو بوت متخصص في تقديم الاستشارات القانونية التي تساعدك على فهم حقوقك\n"
+    "لانحتاج الى اي معلومات شخصية وسيتم حذف المحادثة تلقائيا من السيرفرات فور انتهاء المحادثة\n"
+    "اختر من القائمة ادناه"
 )
 
+MAIN_MENU = [
+    ["استشارات قانونية (تلقائية)"],
+    ["خدماتنا المدفوعة"],
+    ["تعرف على حقوقك (مجاني)"],
+    ["تصفح القوانين العراقية"],
+    ["عن (محامي.كوم)"]
+]
+
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text(WELCOME_MESSAGE)
+    reply_markup = ReplyKeyboardMarkup(MAIN_MENU, resize_keyboard=True)
+    await update.message.reply_text(WELCOME_MESSAGE, reply_markup=reply_markup)
 
 async def echo(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(f"لقد قلت: {update.message.text}")
