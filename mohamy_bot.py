@@ -127,19 +127,17 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             "🤖 تم تأسيس بوت محامي.كوم بهدف تسهيل وصول الأفراد إلى المعلومات القانونية والخدمات الاستشارية بأسلوب عصري وسهل، وبعيدًا عن التعقيد التقليدي في المجال القانوني."
         )
 
-async def main():
-    BOT_TOKEN = os.getenv("BOT_TOKEN")  # الحصول على التوكن من متغير البيئة
+# ===== تشغيل التطبيق دون استخدام asyncio.run() =====
+def run():
+    BOT_TOKEN = os.getenv("BOT_TOKEN")
     if not BOT_TOKEN:
         print("Error: BOT_TOKEN environment variable not set.")
         return
 
     app = ApplicationBuilder().token(BOT_TOKEN).build()
-
     app.add_handler(CommandHandler("start", start))
     app.add_handler(MessageHandler(filters.TEXT & (~filters.COMMAND), handle_message))
-
-    await app.run_polling()
+    app.run_polling()  # لا تحتاج إلى async هنا
 
 if __name__ == "__main__":
-    import asyncio
-    asyncio.run(main())
+    run()
