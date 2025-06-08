@@ -1,6 +1,8 @@
 import os
+import asyncio
+import signal
 from telegram import ReplyKeyboardMarkup, ReplyKeyboardRemove, Update
-from telegram.ext import ApplicationBuilder, ContextTypes, CommandHandler, MessageHandler, filters
+from telegram.ext import Application, CommandHandler, MessageHandler, filters, ContextTypes
 
 # ===== لوحات المفاتيح =====
 def main_keyboard():
@@ -127,21 +129,62 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             "🤖 تم تأسيس بوت محامي.كوم بهدف تسهيل وصول الأفراد إلى المعلومات القانونية والخدمات الاستشارية بأسلوب عصري وسهل، وبعيدًا عن التعقيد التقليدي في المجال القانوني."
         )
 
+# ===== معالجة الأخطاء =====
+async def error_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    print(f"⚠️ حدث خطأ: {context.error}")
+    if update and update.message:
+        await update.message.reply_text("عذرًا، حدث خطأ غير متوقع. الرجاء المحاولة مرة أخرى.")
+
+# ===== إيقاف البوت بشكل نظيف =====
+async def shutdown(application: Application):
+    print("⏳ إيقاف البوت بشكل نظيف...")
+    await application.updater.stop()
+    await application.stop()
+    await application.shutdown()
+    print("✅ تم إيقاف البوت")
+
+# ===== الدالة الرئيسية لتشغيل البوت =====
 async def main():
+    # 1. الحصول على توكن البوت
     BOT_TOKEN = os.getenv("BOT_TOKEN")
-    print(f"BOT_TOKEN loaded: {bool(BOT_TOKEN)}")  # تحقق من تحميل التوكن
-
     if not BOT_TOKEN:
-        print("Error: BOT_TOKEN environment variable not set.")
-        return
+        raise ValueError("❌ لم يتم تعيين متغير البيئة BOT_TOKEN")
+    
+    print("🚀 بدء تشغيل بوت محامي.كوم...")
+    
+    # 2. إنشاء تطبيق البوت
+    application = Application.builder().token(BOT_TOKEN).build()
+    
+    # 3. تسجيل المعالجين
+    application.add_handler(CommandHandler("start", start))
+    application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
+    
+    # 4. تسجيل معالج الأخطاء
+    application.add_error_handler(error_handler)
+    
+    # 5. بدء استقبال التحديثات
+    print("🔄 بدء استقبال التحديثات...")
+    await application.initialize()
+    await application.start()
+    await application.updater.start_polling()
+    
+    # 6. إعداد معالجة الإشارات للإيقاف النظيف
+    loop = asyncio.get_running_loop()
+    for signame in {'SIGINT', 'SIGTERM'}:
+        loop.add_signal_handler(
+            getattr(signal, signame),
+            lambda: asyncio.create_task(shutdown(application))
+    
+    # 7. حلقة التشغيل المستمرة
+    print("🤖 البوت يعمل الآن! (CTRL+C للإيقاف)")
+    while True:
+        await asyncio.sleep(3600)  # البقاء نشطًا للأبد
 
-    app = ApplicationBuilder().token(BOT_TOKEN).build()
-
-    app.add_handler(CommandHandler("start", start))
-    app.add_handler(MessageHandler(filters.TEXT & (~filters.COMMAND), handle_message))
-
-    await app.run_polling()
-
+# ===== نقطة الدخول =====
 if __name__ == "__main__":
-    import asyncio
-    asyncio.run(main())
+    try:
+        asyncio.run(main())
+    except KeyboardInterrupt:
+        print("⛔ تم إيقاف البوت بواسطة المستخدم")
+    except Exception as e:
+        print(f"❌ خطأ غير متوقع: {e}")
