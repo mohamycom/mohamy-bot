@@ -31,7 +31,7 @@ ABOUT_MESSAGE = (
 
 MAIN_MENU = [
     ["استشارات قانونية (تلقائية)", "خدماتنا المدفوعة"],
-    ["تعرف على حقوقك (مجاني)", "تصفح القوانين العراقية"],
+    ["تعرف على حقوقك (مجاني)"],
     ["عن (محامي.كوم)"]
 ]
 
@@ -39,10 +39,8 @@ BACK_TO_MENU = [[KeyboardButton("العودة إلى القائمة الرئيس
 PAID_REPLY_MARKUP = ReplyKeyboardMarkup([["نعم، أوافق"], ["إلغاء"], ["العودة إلى القائمة الرئيسية"]], resize_keyboard=True)
 ONLY_BACK_MARKUP = ReplyKeyboardMarkup([["العودة إلى القائمة الرئيسية"]], resize_keyboard=True)
 
-# إعداد متغيرات الخدمات المدفوعة
 PAID_SERVICE, SERVICE_TYPE, WAITING_QUESTION, WAITING_REJECTION_REASON = range(4)
 
-# خيارات الخدمات المدفوعة (بدون ذكر المبلغ)
 SERVICE_OPTIONS = [
     [
         "تنظيم قضايا موظفي الدولة في الوزارات كافة",
@@ -54,14 +52,12 @@ SERVICE_OPTIONS = [
     ],
     ["العودة إلى القائمة الرئيسية"]
 ]
-
 SERVICE_PRICES = {
     "تنظيم قضايا موظفي الدولة في الوزارات كافة": 50000,
     "تنظيم قضايا منتسبي الجيش العراقي": 50000,
     "تنظيم العقود الخاصة": 100000,
     "استفسارات قانونية أخرى": None
 }
-
 SERVICE_NAMES_DISPLAY = {
     "تنظيم قضايا موظفي الدولة في الوزارات كافة": "تنظيم قضايا موظفي الدولة في الوزارات كافة (50,000 د.ع)",
     "تنظيم قضايا منتسبي الجيش العراقي": "تنظيم قضايا منتسبي الجيش العراقي (50,000 د.ع)",
@@ -112,7 +108,7 @@ async def menu_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             reply_markup=reply_markup
         )
         return SERVICE_TYPE
-    elif text in sum(MAIN_MENU, []):  # باقي الأزرار
+    elif text in sum(MAIN_MENU, []):
         reply_markup = ReplyKeyboardMarkup(BACK_TO_MENU, resize_keyboard=True)
         await update.message.reply_text("سيتم تفعيل الخدمة قريبا", reply_markup=reply_markup)
 
@@ -180,7 +176,6 @@ async def question_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     }
     save_questions()
 
-    # أزرار الموافقة/الرفض للمحامي
     lawyer_markup = InlineKeyboardMarkup([
         [
             InlineKeyboardButton("موافقة", callback_data=f"approve_{question_id}"),
@@ -219,7 +214,6 @@ async def lawyer_callback_handler(update: Update, context: ContextTypes.DEFAULT_
             service_price = q["service_price"]
             service_display = SERVICE_NAMES_DISPLAY.get(service_type, service_type)
 
-            # أزرار التواصل
             contact_markup = InlineKeyboardMarkup([
                 [InlineKeyboardButton("التواصل عبر التليجرام", callback_data=f"contact_telegram_{question_id}")],
                 [InlineKeyboardButton("التواصل عبر الواتساب", callback_data=f"contact_whatsapp_{question_id}")],
