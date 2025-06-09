@@ -6,7 +6,7 @@ from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, Con
 TOKEN = os.environ.get("BOT_TOKEN")
 
 WELCOME_MESSAGE = (
-    "مرحبًا بك في محامي.كوم ⚖️\n"
+    "مرحبًا بك في محامي.كوم⚖️\n"
     "نحن هنا لمساعدتك في الحصول على استشارات قانونية موثوقة تساعدك على فهم حقوقك واتخاذ قراراتك بثقة.\n\n"
     "✅ لا نطلب أي معلومات شخصية\n"
     "🗑️ يتم حذف المحادثة تلقائيًا من السيرفرات فور انتهائها — خصوصيتك أولويتنا\n\n"
@@ -36,6 +36,8 @@ MAIN_MENU = [
 ]
 
 BACK_TO_MENU = [[KeyboardButton("العودة إلى القائمة الرئيسية")]]
+PAID_REPLY_MARKUP = ReplyKeyboardMarkup([["نعم، أوافق"], ["إلغاء"], ["العودة إلى القائمة الرئيسية"]], resize_keyboard=True)
+ONLY_BACK_MARKUP = ReplyKeyboardMarkup([["العودة إلى القائمة الرئيسية"]], resize_keyboard=True)
 
 # إعداد متغيرات الخدمات المدفوعة
 PAID_SERVICE, SERVICE_TYPE, WAITING_QUESTION = range(3)
@@ -112,13 +114,12 @@ async def service_type_handler(update: Update, context: ContextTypes.DEFAULT_TYP
             price_msg = f"- تكلفة الاستشارة: {service_price:,} دينار عراقي."
         else:
             price_msg = "- تكلفة الاستشارة: سيتم تحديدها بعد مراجعة المحامي."
-        reply_markup = ReplyKeyboardMarkup([["نعم، أوافق"], ["إلغاء"]], resize_keyboard=True)
         await update.message.reply_text(
             f"🟢 الخدمة المدفوعة - {text}\n\n"
             "- هذه الخدمة مخصصة للاستشارات القانونية الحساسة التي تحتاج إلى إجابة من مختصين ذوي خبرة.\n"
             f"{price_msg}\n"
             "هل توافق على الشروط وتريد متابعة طلب الاستشارة؟",
-            reply_markup=reply_markup
+            reply_markup=PAID_REPLY_MARKUP
         )
         return PAID_SERVICE
     elif text == "العودة إلى القائمة الرئيسية":
@@ -126,15 +127,20 @@ async def service_type_handler(update: Update, context: ContextTypes.DEFAULT_TYP
         await update.message.reply_text(WELCOME_MESSAGE, reply_markup=reply_markup)
         return ConversationHandler.END
     else:
-        await update.message.reply_text("يرجى اختيار نوع خدمة من القائمة.")
+        await update.message.reply_text("يرجى اختيار نوع خدمة من القائمة.", reply_markup=PAID_REPLY_MARKUP)
 
 async def paid_service_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     text = update.message.text
     if text == "نعم، أوافق":
         await update.message.reply_text(
-            "يرجى كتابة استفسارك بشكل مفصل ليتم تحويله للمحامي المختص."
+            "يرجى كتابة استفسارك بشكل مفصل ليتم تحويله للمحامي المختص.",
+            reply_markup=ONLY_BACK_MARKUP
         )
         return WAITING_QUESTION
+    elif text == "العودة إلى القائمة الرئيسية":
+        reply_markup = ReplyKeyboardMarkup(MAIN_MENU, resize_keyboard=True)
+        await update.message.reply_text(WELCOME_MESSAGE, reply_markup=reply_markup)
+        return ConversationHandler.END
     else:
         reply_markup = ReplyKeyboardMarkup(MAIN_MENU, resize_keyboard=True)
         await update.message.reply_text("تم إلغاء الطلب.", reply_markup=reply_markup)
@@ -167,7 +173,8 @@ async def question_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     )
     await update.message.reply_text(
         "تم إرسال استفسارك للمحامي المختص.\n"
-        "سيتم إعلامك عند الموافقة على طلبك."
+        "سيتم إعلامك عند الموافقة على طلبك.",
+        reply_markup=ONLY_BACK_MARKUP
     )
     await context.bot.send_message(chat_id=LAWYER_USER_ID, text=msg)
     return ConversationHandler.END
@@ -189,30 +196,36 @@ async def accept_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         service_type = q["service_type"]
         service_price = q["service_price"]
 
+        reply_markup = ONLY_BACK_MARKUP
+
         if service_price is not None:
             accept_message = (
                 "✅ تمت الموافقة على استفسارك من قبل المحامي.\n\n"
                 f"نوع الخدمة: {service_type}\n"
                 f"تكلفة الخدمة: {service_price:,} دينار عراقي\n\n"
-                "يمكنك الآن إكمال إجراءات الدفع والتواصل عبر أحد الطرق التالية:\n"
+                "يمكنك الآن إكمال إجراءات الدفع والتواصل عبر أحد الطرق التالية:\n\n"
                 f"1️⃣ تيليجرام: @{LAWYER_USERNAME}\n"
                 f"2️⃣ الإيميل: {LAWYER_EMAIL}\n"
                 f"3️⃣ واتساب: {LAWYER_WHATSAPP}\n\n"
-                "يرجى إرسال صورة التحويل أو رقم العملية عبر الوسيلة التي تفضلها، وسيتم الرد عليك بعد التأكد."
+                "يرجى إرسال صورة التحويل أو رقم العملية عبر الوسيلة التي تفضلها، وسيتم الرد عليك بعد التأكد.\n\n"
+                "يرجى عدم التواصل مع الطرق اعلاه الا عندما يتم تحويل المبلغ المحدد وسيتم اهمال اي رسالة قبل ذلك\n"
+                "شكرا لتفهمكم"
             )
         else:
             accept_message = (
                 "✅ تمت الموافقة على استفسارك من قبل المحامي.\n\n"
                 f"نوع الخدمة: {service_type}\n"
                 "تكلفة الخدمة: سيتم إعلامك بالسعر بعد مراجعة المحامي.\n\n"
-                "يمكنك الآن إكمال إجراءات الدفع والتواصل عبر أحد الطرق التالية:\n"
+                "يمكنك الآن إكمال إجراءات الدفع والتواصل عبر أحد الطرق التالية:\n\n"
                 f"1️⃣ تيليجرام: @{LAWYER_USERNAME}\n"
                 f"2️⃣ الإيميل: {LAWYER_EMAIL}\n"
                 f"3️⃣ واتساب: {LAWYER_WHATSAPP}\n\n"
-                "يرجى إرسال صورة التحويل أو رقم العملية عبر الوسيلة التي تفضلها، وسيتم الرد عليك بعد التأكد."
+                "يرجى إرسال صورة التحويل أو رقم العملية عبر الوسيلة التي تفضلها، وسيتم الرد عليك بعد التأكد.\n\n"
+                "يرجى عدم التواصل مع الطرق اعلاه الا عندما يتم تحويل المبلغ المحدد وسيتم اهمال اي رسالة قبل ذلك\n"
+                "شكرا لتفهمكم"
             )
         try:
-            await context.bot.send_message(chat_id=user_id, text=accept_message)
+            await context.bot.send_message(chat_id=user_id, text=accept_message, reply_markup=reply_markup)
         except Exception as e:
             await update.message.reply_text(f"حدث خطأ أثناء محاولة إرسال رسالة القبول للمستخدم: {e}")
             return
