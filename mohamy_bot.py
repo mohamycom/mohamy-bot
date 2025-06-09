@@ -145,8 +145,11 @@ async def paid_service_handler(update: Update, context: ContextTypes.DEFAULT_TYP
     text = update.message.text
     if text == "نعم، أوافق":
         await update.message.reply_text(
-            "يرجى ملاحظة ان طريقة تحويل الاموال تتم عبر تطبيق سوبر كي من قبل مصرف الرافدين فقط في الوقت الحالي\n"
-            "يرجى كتابة الاستفسار كاملا برسالة واحدة وليست مجزأة.",
+            "يرجى ملاحظة ما يلي:\n"
+            "1. ان طريقة تحويل الاموال تتم في الوقت الحالي عبر تطبيق سوبر كي المدعوم من قبل مصرف الرافدين ولاتتوفر طريقة دفع اخرى .\n"
+            "2. كتابة  الاستفسار كاملا برسالة واحدة وعدم اجتزاءه برسائل متعددة.\n"
+            "3. ستتم مراجعة الاستفسار من قبل محامين متخصصين وفي حال الموافقة سيتم ارسال اشعار اليكم بذلك متضمنا كيفية الدفع .\n"
+            "شكرا لتفهمكم",
             reply_markup=ONLY_BACK_MARKUP
         )
         return WAITING_QUESTION
@@ -250,13 +253,11 @@ async def lawyer_callback_handler(update: Update, context: ContextTypes.DEFAULT_
         else:
             await query.edit_message_text("لم يتم العثور على هذا الاستفسار.")
     elif data.startswith("reject_"):
-        # بدء مرحلة إدخال سبب الرفض
         question_id = int(data.replace("reject_", ""))
         context.user_data["rejected_question_id"] = question_id
         await query.edit_message_text("يرجى كتابة سبب رفض الاستفسار (سيُرسل للمستخدم):")
         return WAITING_REJECTION_REASON
     elif data.startswith("contact_"):
-        # مستخدم ضغط زر طريقة التواصل
         parts = data.split("_")
         method = parts[1]
         if method == "telegram":
@@ -297,7 +298,9 @@ def main():
     app = ApplicationBuilder().token(TOKEN).build()
 
     conv_handler = ConversationHandler(
-        entry_points=[MessageHandler(filters.TEXT & ~filters.COMMAND, menu_handler)],
+        entry_points=[
+            MessageHandler(filters.TEXT & ~filters.COMMAND, menu_handler)
+        ],
         states={
             SERVICE_TYPE: [MessageHandler(filters.TEXT & ~filters.COMMAND, service_type_handler)],
             PAID_SERVICE: [MessageHandler(filters.TEXT & ~filters.COMMAND, paid_service_handler)],
@@ -305,6 +308,7 @@ def main():
             WAITING_REJECTION_REASON: [MessageHandler(filters.TEXT & ~filters.COMMAND, rejection_reason_handler)],
         },
         fallbacks=[MessageHandler(filters.Regex("^العودة إلى القائمة الرئيسية$"), menu_handler)],
+        allow_reentry=True,
     )
 
     app.add_handler(CommandHandler("start", start))
