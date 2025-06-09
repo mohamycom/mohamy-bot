@@ -28,7 +28,6 @@ ABOUT_MESSAGE = (
     "_(الخدمات الأساسية مجانية بالكامل)_"
 )
 
-# ترتيب الأزرار بشكل أفقي (اثنين في كل سطر)
 MAIN_MENU = [
     ["استشارات قانونية (تلقائية)", "خدماتنا المدفوعة"],
     ["تعرف على حقوقك (مجاني)", "تصفح القوانين العراقية"],
@@ -53,11 +52,15 @@ async def menu_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         reply_markup = ReplyKeyboardMarkup(BACK_TO_MENU, resize_keyboard=True)
         await update.message.reply_text("سيتم تفعيل الخدمة قريبا", reply_markup=reply_markup)
 
+async def error_handler(update: object, context: ContextTypes.DEFAULT_TYPE):
+    print(f"حدث خطأ: {context.error}")
+
 def main():
     app = ApplicationBuilder().token(TOKEN).build()
 
     app.add_handler(CommandHandler("start", start))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, menu_handler))
+    app.add_error_handler(error_handler)
 
     app.run_polling()
 
