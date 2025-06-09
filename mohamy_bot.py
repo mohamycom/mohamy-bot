@@ -4,12 +4,29 @@ import os
 
 TOKEN = os.environ.get("BOT_TOKEN")
 
-LAWYER_USER_ID = 8109994800
-LAWYER_USERNAME = "mohamycom"
-LAWYER_EMAIL = "mohamycom@proton.me"
-LAWYER_WHATSAPP = "07775535047"
+WELCOME_MESSAGE = (
+    "مرحبًا بك في محامي.كوم ⚖️\n"
+    "نحن هنا لمساعدتك في الحصول على استشارات قانونية موثوقة تساعدك على فهم حقوقك واتخاذ قراراتك بثقة.\n\n"
+    "✅ لا نطلب أي معلومات شخصية\n"
+    "🗑️ يتم حذف المحادثة تلقائيًا من السيرفرات فور انتهائها — خصوصيتك أولويتنا\n\n"
+    "📋 اختر أحد الخيارات من القائمة أدناه للبدء:"
+)
 
-PAID_SERVICE, SERVICE_TYPE, WAITING_QUESTION = range(3)
+ABOUT_MESSAGE = (
+    "عن محامي.كوم ⚖️\n\n"
+    "\"محامي.كوم\" هو أول منصة عراقية ذكية متخصصة في تقديم استشارات قانونية مبسّطة وآمنة تساعدك على فهم حقوقك والتعامل مع القضايا القانونية بثقة.\n\n"
+    "نحن نؤمن أن الوصول إلى المعرفة القانونية حق للجميع، لذلك نوفر لك معلومات دقيقة ومبسطة دون الحاجة للكشف عن أي بيانات شخصية.\n\n"
+    "🔒 الخصوصية أولويتنا:\n"
+    "لا نطلب معلومات شخصية، ويتم حذف المحادثة تلقائيًا بعد انتهائها من خوادمنا.\n\n"
+    "💡 لماذا محامي.كوم؟\n"
+    "👥 أول منصة قانونية عراقية يديرها نخبة من المحامين والحقوقيين العراقيين\n"
+    "✅ إجابات سريعة وواضحة\n"
+    "🕔 متاحة في أي وقت\n"
+    "📚 تغطي مختلف التخصصات القانونية (العقود، الأسرة، العمل، العقارات...)\n\n"
+    "ابدأ الآن، واطمئن بأن استفسارك بين أيدٍ أمينة.\n\n"
+    "لأي دعم أو ملاحظات: mohamycom@proton.me\n"
+    "_(الخدمات الأساسية مجانية بالكامل)_"
+)
 
 MAIN_MENU = [
     ["استشارات قانونية (تلقائية)", "خدماتنا المدفوعة"],
@@ -17,7 +34,11 @@ MAIN_MENU = [
     ["عن (محامي.كوم)"]
 ]
 
-# تعديل الأسعار بحيث العقود الخاصة = 100.000 د.ع
+BACK_TO_MENU = [[KeyboardButton("العودة إلى القائمة الرئيسية")]]
+
+# إعداد متغيرات الخدمات المدفوعة
+PAID_SERVICE, SERVICE_TYPE, WAITING_QUESTION = range(3)
+
 SERVICE_OPTIONS = [
     [
         "تنظيم قضايا موظفي الدولة في الوزارات كافة (50,000 د.ع)",
@@ -35,17 +56,26 @@ SERVICE_PRICES = {
     "استفسارات قانونية أخرى (السعر يُحدد بعد مراجعة المحامي)": None
 }
 
+LAWYER_USER_ID = 8109994800
+LAWYER_USERNAME = "mohamycom"
+LAWYER_EMAIL = "mohamycom@proton.me"
+LAWYER_WHATSAPP = "07775535047"
+
+user_questions = {}
+
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     reply_markup = ReplyKeyboardMarkup(MAIN_MENU, resize_keyboard=True)
-    await update.message.reply_text(
-        "مرحبًا بك في محامي.كوم ⚖️\n"
-        "اختر الخدمة التي تحتاجها من القائمة:",
-        reply_markup=reply_markup
-    )
+    await update.message.reply_text(WELCOME_MESSAGE, reply_markup=reply_markup)
 
 async def menu_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     text = update.message.text
-    if text == "خدماتنا المدفوعة":
+    if text == "العودة إلى القائمة الرئيسية":
+        reply_markup = ReplyKeyboardMarkup(MAIN_MENU, resize_keyboard=True)
+        await update.message.reply_text(WELCOME_MESSAGE, reply_markup=reply_markup)
+    elif text == "عن (محامي.كوم)":
+        reply_markup = ReplyKeyboardMarkup(BACK_TO_MENU, resize_keyboard=True)
+        await update.message.reply_text(ABOUT_MESSAGE, reply_markup=reply_markup)
+    elif text == "خدماتنا المدفوعة":
         reply_markup = ReplyKeyboardMarkup(SERVICE_OPTIONS, resize_keyboard=True)
         await update.message.reply_text(
             "🟢 الخدمة المدفوعة - استشارة خاصة\n\n"
@@ -54,12 +84,9 @@ async def menu_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             reply_markup=reply_markup
         )
         return SERVICE_TYPE
-    elif text == "العودة إلى القائمة الرئيسية":
-        reply_markup = ReplyKeyboardMarkup(MAIN_MENU, resize_keyboard=True)
-        await update.message.reply_text("عدنا إلى القائمة الرئيسية.", reply_markup=reply_markup)
-        return ConversationHandler.END
-    else:
-        await update.message.reply_text("يرجى اختيار خدمة من القائمة.")
+    elif text in sum(MAIN_MENU, []):  # باقي الأزرار
+        reply_markup = ReplyKeyboardMarkup(BACK_TO_MENU, resize_keyboard=True)
+        await update.message.reply_text("سيتم تفعيل الخدمة قريبا", reply_markup=reply_markup)
 
 async def service_type_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     text = update.message.text
@@ -81,7 +108,7 @@ async def service_type_handler(update: Update, context: ContextTypes.DEFAULT_TYP
         return PAID_SERVICE
     elif text == "العودة إلى القائمة الرئيسية":
         reply_markup = ReplyKeyboardMarkup(MAIN_MENU, resize_keyboard=True)
-        await update.message.reply_text("عدنا إلى القائمة الرئيسية.", reply_markup=reply_markup)
+        await update.message.reply_text(WELCOME_MESSAGE, reply_markup=reply_markup)
         return ConversationHandler.END
     else:
         await update.message.reply_text("يرجى اختيار نوع خدمة من القائمة.")
@@ -97,8 +124,6 @@ async def paid_service_handler(update: Update, context: ContextTypes.DEFAULT_TYP
         reply_markup = ReplyKeyboardMarkup(MAIN_MENU, resize_keyboard=True)
         await update.message.reply_text("تم إلغاء الطلب.", reply_markup=reply_markup)
         return ConversationHandler.END
-
-user_questions = {}
 
 async def question_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user = update.message.from_user
@@ -123,55 +148,12 @@ async def question_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         f"نص الاستفسار:\n{question}\n\n"
         f"للرد بالموافقة أرسل:\n/accept{question_id}"
     )
-    await context.bot.send_message(chat_id=LAWYER_USER_ID, text=msg)
-
     await update.message.reply_text(
         "تم إرسال استفسارك للمحامي المختص.\n"
         "سيتم إعلامك عند الموافقة على طلبك."
     )
+    await context.bot.send_message(chat_id=LAWYER_USER_ID, text=msg)
     return ConversationHandler.END
-
-async def accept_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    text = update.message.text
-    if not text.startswith("/accept"):
-        return
-    try:
-        question_id = int(text.replace("/accept", ""))
-    except ValueError:
-        await update.message.reply_text("صيغة رقم الاستفسار غير صحيحة.")
-        return
-
-    if question_id in user_questions:
-        user_id = user_questions[question_id]["user_id"]
-        service_type = user_questions[question_id]["service_type"]
-        service_price = user_questions[question_id]["service_price"]
-        if service_price is not None:
-            accept_message = (
-                "✅ تمت الموافقة على استفسارك من قبل المحامي.\n\n"
-                f"نوع الخدمة: {service_type}\n"
-                f"تكلفة الخدمة: {service_price:,} دينار عراقي\n\n"
-                "يمكنك الآن إكمال إجراءات الدفع والتواصل عبر أحد الطرق التالية:\n"
-                f"1️⃣ تيليجرام: @{LAWYER_USERNAME}\n"
-                f"2️⃣ الإيميل: {LAWYER_EMAIL}\n"
-                f"3️⃣ واتساب: {LAWYER_WHATSAPP}\n\n"
-                "يرجى إرسال صورة التحويل أو رقم العملية عبر الوسيلة التي تفضلها، وسيتم الرد عليك بعد التأكد."
-            )
-        else:
-            accept_message = (
-                "✅ تمت الموافقة على استفسارك من قبل المحامي.\n\n"
-                f"نوع الخدمة: {service_type}\n"
-                "تكلفة الخدمة: سيتم إعلامك بالسعر بعد مراجعة المحامي.\n\n"
-                "يمكنك الآن إكمال إجراءات الدفع والتواصل عبر أحد الطرق التالية:\n"
-                f"1️⃣ تيليجرام: @{LAWYER_USERNAME}\n"
-                f"2️⃣ الإيميل: {LAWYER_EMAIL}\n"
-                f"3️⃣ واتساب: {LAWYER_WHATSAPP}\n\n"
-                "يرجى إرسال صورة التحويل أو رقم العملية عبر الوسيلة التي تفضلها، وسيتم الرد عليك بعد التأكد."
-            )
-        await context.bot.send_message(chat_id=user_id, text=accept_message)
-        await update.message.reply_text("تم إعلام المستخدم بالموافقة.")
-        del user_questions[question_id]
-    else:
-        await update.message.reply_text("لم يتم العثور على هذا الاستفسار.")
 
 async def error_handler(update: object, context: ContextTypes.DEFAULT_TYPE):
     print(f"حدث خطأ: {context.error}")
@@ -191,8 +173,8 @@ def main():
 
     app.add_handler(CommandHandler("start", start))
     app.add_handler(conv_handler)
-    app.add_handler(MessageHandler(filters.Regex(r"^/accept\d+$"), accept_handler))
     app.add_error_handler(error_handler)
+
     app.run_polling()
 
 if __name__ == '__main__':
