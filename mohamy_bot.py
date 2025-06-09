@@ -1,6 +1,7 @@
+import json
+import os
 from telegram import Update, ReplyKeyboardMarkup, KeyboardButton
 from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, ContextTypes, filters, ConversationHandler
-import os
 
 TOKEN = os.environ.get("BOT_TOKEN")
 
@@ -61,7 +62,21 @@ LAWYER_USERNAME = "mohamycom"
 LAWYER_EMAIL = "mohamycom@proton.me"
 LAWYER_WHATSAPP = "07775535047"
 
+QUESTIONS_FILE = "user_questions.json"
 user_questions = {}
+
+def save_questions():
+    with open(QUESTIONS_FILE, 'w', encoding='utf-8') as f:
+        json.dump(user_questions, f, ensure_ascii=False)
+
+def load_questions():
+    global user_questions
+    try:
+        with open(QUESTIONS_FILE, 'r', encoding='utf-8') as f:
+            user_questions = json.load(f)
+            user_questions = {int(k): v for k, v in user_questions.items()}
+    except Exception:
+        user_questions = {}
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     reply_markup = ReplyKeyboardMarkup(MAIN_MENU, resize_keyboard=True)
@@ -132,13 +147,15 @@ async def question_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     service_type = context.user_data.get("selected_service_type", "غير محدد")
     service_price = SERVICE_PRICES.get(service_type)
 
-    question_id = len(user_questions) + 1
+    load_questions()
+    question_id = max(user_questions.keys(), default=0) + 1
     user_questions[question_id] = {
         "user_id": chat_id,
         "question": question,
         "service_type": service_type,
         "service_price": service_price
     }
+    save_questions()
 
     msg = (
         f"استفسار مدفوع جديد\n"
@@ -155,10 +172,61 @@ async def question_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await context.bot.send_message(chat_id=LAWYER_USER_ID, text=msg)
     return ConversationHandler.END
 
+async def accept_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    text = update.message.text
+    if not text.startswith("/accept"):
+        return
+    try:
+        question_id = int(text.replace("/accept", ""))
+    except Exception:
+        await update.message.reply_text("صيغة رقم الاستفسار غير صحيحة.")
+        return
+
+    load_questions()
+    if question_id in user_questions:
+        q = user_questions[question_id]
+        user_id = q["user_id"]
+        service_type = q["service_type"]
+        service_price = q["service_price"]
+
+        if service_price is not None:
+            accept_message = (
+                "✅ تمت الموافقة على استفسارك من قبل المحامي.\n\n"
+                f"نوع الخدمة: {service_type}\n"
+                f"تكلفة الخدمة: {service_price:,} دينار عراقي\n\n"
+                "يمكنك الآن إكمال إجراءات الدفع والتواصل عبر أحد الطرق التالية:\n"
+                f"1️⃣ تيليجرام: @{LAWYER_USERNAME}\n"
+                f"2️⃣ الإيميل: {LAWYER_EMAIL}\n"
+                f"3️⃣ واتساب: {LAWYER_WHATSAPP}\n\n"
+                "يرجى إرسال صورة التحويل أو رقم العملية عبر الوسيلة التي تفضلها، وسيتم الرد عليك بعد التأكد."
+            )
+        else:
+            accept_message = (
+                "✅ تمت الموافقة على استفسارك من قبل المحامي.\n\n"
+                f"نوع الخدمة: {service_type}\n"
+                "تكلفة الخدمة: سيتم إعلامك بالسعر بعد مراجعة المحامي.\n\n"
+                "يمكنك الآن إكمال إجراءات الدفع والتواصل عبر أحد الطرق التالية:\n"
+                f"1️⃣ تيليجرام: @{LAWYER_USERNAME}\n"
+                f"2️⃣ الإيميل: {LAWYER_EMAIL}\n"
+                f"3️⃣ واتساب: {LAWYER_WHATSAPP}\n\n"
+                "يرجى إرسال صورة التحويل أو رقم العملية عبر الوسيلة التي تفضلها، وسيتم الرد عليك بعد التأكد."
+            )
+        try:
+            await context.bot.send_message(chat_id=user_id, text=accept_message)
+        except Exception as e:
+            await update.message.reply_text(f"حدث خطأ أثناء محاولة إرسال رسالة القبول للمستخدم: {e}")
+            return
+        await update.message.reply_text("تم إعلام المستخدم بالموافقة.")
+        del user_questions[question_id]
+        save_questions()
+    else:
+        await update.message.reply_text("لم يتم العثور على هذا الاستفسار.")
+
 async def error_handler(update: object, context: ContextTypes.DEFAULT_TYPE):
     print(f"حدث خطأ: {context.error}")
 
 def main():
+    load_questions()
     app = ApplicationBuilder().token(TOKEN).build()
 
     conv_handler = ConversationHandler(
@@ -173,6 +241,7 @@ def main():
 
     app.add_handler(CommandHandler("start", start))
     app.add_handler(conv_handler)
+    app.add_handler(MessageHandler(filters.Regex(r"^/accept\d+$"), accept_handler))
     app.add_error_handler(error_handler)
 
     app.run_polling()
