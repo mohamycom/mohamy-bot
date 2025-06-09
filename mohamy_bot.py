@@ -1,7 +1,7 @@
 import json
 import os
-from telegram import Update, ReplyKeyboardMarkup, KeyboardButton
-from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, ContextTypes, filters, ConversationHandler
+from telegram import Update, ReplyKeyboardMarkup, KeyboardButton, InlineKeyboardMarkup, InlineKeyboardButton
+from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, ContextTypes, filters, ConversationHandler, CallbackQueryHandler
 
 TOKEN = os.environ.get("BOT_TOKEN")
 
@@ -40,7 +40,7 @@ PAID_REPLY_MARKUP = ReplyKeyboardMarkup([["نعم، أوافق"], ["إلغاء"]
 ONLY_BACK_MARKUP = ReplyKeyboardMarkup([["العودة إلى القائمة الرئيسية"]], resize_keyboard=True)
 
 # إعداد متغيرات الخدمات المدفوعة
-PAID_SERVICE, SERVICE_TYPE, WAITING_QUESTION = range(3)
+PAID_SERVICE, SERVICE_TYPE, WAITING_QUESTION, WAITING_REJECTION_REASON = range(4)
 
 # خيارات الخدمات المدفوعة (بدون ذكر المبلغ)
 SERVICE_OPTIONS = [
@@ -73,6 +73,7 @@ LAWYER_USER_ID = 8109994800
 LAWYER_USERNAME = "mohamycom"
 LAWYER_EMAIL = "mohamycom@proton.me"
 LAWYER_WHATSAPP = "07775535047"
+ACCOUNT_NUMBER = "9916153415"
 
 QUESTIONS_FILE = "user_questions.json"
 user_questions = {}
@@ -144,7 +145,8 @@ async def paid_service_handler(update: Update, context: ContextTypes.DEFAULT_TYP
     text = update.message.text
     if text == "نعم، أوافق":
         await update.message.reply_text(
-            "يرجى كتابة استفسارك بشكل مفصل ليتم تحويله للمحامي المختص.",
+            "يرجى ملاحظة ان طريقة تحويل الاموال تتم عبر تطبيق سوبر كي من قبل مصرف الرافدين فقط في الوقت الحالي\n"
+            "يرجى كتابة الاستفسار كاملا برسالة واحدة وليست مجزأة.",
             reply_markup=ONLY_BACK_MARKUP
         )
         return WAITING_QUESTION
@@ -175,78 +177,117 @@ async def question_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     }
     save_questions()
 
+    # أزرار الموافقة/الرفض للمحامي
+    lawyer_markup = InlineKeyboardMarkup([
+        [
+            InlineKeyboardButton("موافقة", callback_data=f"approve_{question_id}"),
+            InlineKeyboardButton("رفض", callback_data=f"reject_{question_id}")
+        ]
+    ])
+
     msg = (
         f"استفسار مدفوع جديد\n"
         f"رقم الاستفسار: {question_id}\n"
         f"نوع الخدمة: {service_display}\n"
         f"من: {user.full_name} (@{user.username or 'بدون يوزرنيم'})\n"
         f"نص الاستفسار:\n{question}\n\n"
-        f"للرد بالموافقة أرسل:\n/accept{question_id}"
+        f"اختر الإجراء المناسب:"
     )
     await update.message.reply_text(
         "تم إرسال استفسارك للمحامي المختص.\n"
         "سيتم إعلامك عند الموافقة على طلبك.",
         reply_markup=ONLY_BACK_MARKUP
     )
-    await context.bot.send_message(chat_id=LAWYER_USER_ID, text=msg)
+    await context.bot.send_message(chat_id=LAWYER_USER_ID, text=msg, reply_markup=lawyer_markup)
     return ConversationHandler.END
 
-async def accept_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    text = update.message.text
-    if not text.startswith("/accept"):
-        return
-    try:
-        question_id = int(text.replace("/accept", ""))
-    except Exception:
-        await update.message.reply_text("صيغة رقم الاستفسار غير صحيحة.")
-        return
+async def lawyer_callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    await query.answer()
+    data = query.data
 
+    if data.startswith("approve_"):
+        question_id = int(data.replace("approve_", ""))
+        load_questions()
+        if question_id in user_questions:
+            q = user_questions[question_id]
+            user_id = q["user_id"]
+            service_type = q["service_type"]
+            service_price = q["service_price"]
+            service_display = SERVICE_NAMES_DISPLAY.get(service_type, service_type)
+
+            # أزرار التواصل
+            contact_markup = InlineKeyboardMarkup([
+                [InlineKeyboardButton("التواصل عبر التليجرام", callback_data=f"contact_telegram_{question_id}")],
+                [InlineKeyboardButton("التواصل عبر الواتساب", callback_data=f"contact_whatsapp_{question_id}")],
+                [InlineKeyboardButton("التواصل عبر الايميل", callback_data=f"contact_email_{question_id}")]
+            ])
+
+            if service_price is not None:
+                accept_message = (
+                    "✅ تمت الموافقة على استفسارك من قبل المحامي.\n\n"
+                    f"نوع الخدمة: {service_display}\n"
+                    f"تكلفة الخدمة: {service_price:,} دينار عراقي\n\n"
+                    f"يرجى التحويل الى رقم الحساب الاتي  {ACCOUNT_NUMBER}\n\n"
+                    "بعد التحويل يمكنك اختيار طريقة التواصل التي تناسبك بالضغط على الزر المناسب 👇"
+                )
+            else:
+                accept_message = (
+                    "✅ تمت الموافقة على استفسارك من قبل المحامي.\n\n"
+                    f"نوع الخدمة: {service_display}\n"
+                    "تكلفة الخدمة: سيتم إعلامك بالسعر بعد مراجعة المحامي.\n\n"
+                    f"يرجى التحويل الى رقم الحساب الاتي  {ACCOUNT_NUMBER}\n\n"
+                    "بعد التحويل يمكنك اختيار طريقة التواصل التي تناسبك بالضغط على الزر المناسب 👇"
+                )
+            try:
+                await context.bot.send_message(chat_id=user_id, text=accept_message, reply_markup=contact_markup)
+            except Exception as e:
+                await query.edit_message_text(f"حدث خطأ أثناء محاولة إرسال رسالة القبول للمستخدم: {e}")
+                return
+            await query.edit_message_text("تم إعلام المستخدم بالموافقة.")
+            del user_questions[question_id]
+            save_questions()
+        else:
+            await query.edit_message_text("لم يتم العثور على هذا الاستفسار.")
+    elif data.startswith("reject_"):
+        # بدء مرحلة إدخال سبب الرفض
+        question_id = int(data.replace("reject_", ""))
+        context.user_data["rejected_question_id"] = question_id
+        await query.edit_message_text("يرجى كتابة سبب رفض الاستفسار (سيُرسل للمستخدم):")
+        return WAITING_REJECTION_REASON
+    elif data.startswith("contact_"):
+        # مستخدم ضغط زر طريقة التواصل
+        parts = data.split("_")
+        method = parts[1]
+        if method == "telegram":
+            text = f"معلومات التواصل عبر التليجرام:\n@{LAWYER_USERNAME}"
+        elif method == "whatsapp":
+            text = f"معلومات التواصل عبر الواتساب:\n{LAWYER_WHATSAPP}"
+        elif method == "email":
+            text = f"معلومات التواصل عبر البريد الإلكتروني:\n{LAWYER_EMAIL}"
+        else:
+            text = "طريقة التواصل غير معروفة."
+        await query.answer()
+        await query.message.reply_text(text)
+
+async def rejection_reason_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    reason = update.message.text
+    question_id = context.user_data.get("rejected_question_id")
     load_questions()
-    if question_id in user_questions:
+    if question_id and question_id in user_questions:
         q = user_questions[question_id]
         user_id = q["user_id"]
-        service_type = q["service_type"]
-        service_price = q["service_price"]
-        service_display = SERVICE_NAMES_DISPLAY.get(service_type, service_type)
-
-        reply_markup = ONLY_BACK_MARKUP
-
-        if service_price is not None:
-            accept_message = (
-                "✅ تمت الموافقة على استفسارك من قبل المحامي.\n\n"
-                f"نوع الخدمة: {service_display}\n"
-                f"تكلفة الخدمة: {service_price:,} دينار عراقي\n\n"
-                "يمكنك الآن إكمال إجراءات الدفع والتواصل عبر أحد الطرق التالية:\n\n"
-                f"1️⃣ تيليجرام: @{LAWYER_USERNAME}\n"
-                f"2️⃣ الإيميل: {LAWYER_EMAIL}\n"
-                f"3️⃣ واتساب: {LAWYER_WHATSAPP}\n\n"
-                "يرجى إرسال صورة التحويل أو رقم العملية عبر الوسيلة التي تفضلها، وسيتم الرد عليك بعد التأكد.\n\n"
-                "يرجى عدم التواصل مع الطرق اعلاه الا عندما يتم تحويل المبلغ المحدد وسيتم اهمال اي رسالة قبل ذلك\n"
-                "شكرا لتفهمكم"
-            )
-        else:
-            accept_message = (
-                "✅ تمت الموافقة على استفسارك من قبل المحامي.\n\n"
-                f"نوع الخدمة: {service_display}\n"
-                "تكلفة الخدمة: سيتم إعلامك بالسعر بعد مراجعة المحامي.\n\n"
-                "يمكنك الآن إكمال إجراءات الدفع والتواصل عبر أحد الطرق التالية:\n\n"
-                f"1️⃣ تيليجرام: @{LAWYER_USERNAME}\n"
-                f"2️⃣ الإيميل: {LAWYER_EMAIL}\n"
-                f"3️⃣ واتساب: {LAWYER_WHATSAPP}\n\n"
-                "يرجى إرسال صورة التحويل أو رقم العملية عبر الوسيلة التي تفضلها، وسيتم الرد عليك بعد التأكد.\n\n"
-                "يرجى عدم التواصل مع الطرق اعلاه الا عندما يتم تحويل المبلغ المحدد وسيتم اهمال اي رسالة قبل ذلك\n"
-                "شكرا لتفهمكم"
-            )
-        try:
-            await context.bot.send_message(chat_id=user_id, text=accept_message, reply_markup=reply_markup)
-        except Exception as e:
-            await update.message.reply_text(f"حدث خطأ أثناء محاولة إرسال رسالة القبول للمستخدم: {e}")
-            return
-        await update.message.reply_text("تم إعلام المستخدم بالموافقة.")
+        await context.bot.send_message(
+            chat_id=user_id,
+            text=f"❌ تم رفض استفسارك من قبل المحامي.\n\nسبب الرفض: {reason}",
+            reply_markup=ONLY_BACK_MARKUP
+        )
         del user_questions[question_id]
         save_questions()
+        await update.message.reply_text("تم إرسال سبب الرفض للمستخدم وحذف الاستفسار.", reply_markup=ONLY_BACK_MARKUP)
     else:
-        await update.message.reply_text("لم يتم العثور على هذا الاستفسار.")
+        await update.message.reply_text("لم يتم العثور على هذا الاستفسار.", reply_markup=ONLY_BACK_MARKUP)
+    return ConversationHandler.END
 
 async def error_handler(update: object, context: ContextTypes.DEFAULT_TYPE):
     print(f"حدث خطأ: {context.error}")
@@ -261,13 +302,14 @@ def main():
             SERVICE_TYPE: [MessageHandler(filters.TEXT & ~filters.COMMAND, service_type_handler)],
             PAID_SERVICE: [MessageHandler(filters.TEXT & ~filters.COMMAND, paid_service_handler)],
             WAITING_QUESTION: [MessageHandler(filters.TEXT & ~filters.COMMAND, question_handler)],
+            WAITING_REJECTION_REASON: [MessageHandler(filters.TEXT & ~filters.COMMAND, rejection_reason_handler)],
         },
         fallbacks=[MessageHandler(filters.Regex("^العودة إلى القائمة الرئيسية$"), menu_handler)],
     )
 
     app.add_handler(CommandHandler("start", start))
     app.add_handler(conv_handler)
-    app.add_handler(MessageHandler(filters.Regex(r"^/accept\d+$"), accept_handler))
+    app.add_handler(CallbackQueryHandler(lawyer_callback_handler))
     app.add_error_handler(error_handler)
 
     app.run_polling()
