@@ -9,8 +9,11 @@ from handlers import (
 from keyboards import MAIN_MENU
 from config import TOKEN
 from states_enum import States
+from database_sqlite import init_db  # استيراد تهيئة قاعدة البيانات
 
 def main():
+    init_db()  # تهيئة قاعدة البيانات عند التشغيل
+
     app = ApplicationBuilder().token(TOKEN).build()
 
     conv_handler = ConversationHandler(

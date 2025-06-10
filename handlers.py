@@ -9,7 +9,9 @@ from keyboards import (
     MAIN_MENU, BACK_TO_MENU, PAID_REPLY_MARKUP, ONLY_BACK_MARKUP,
     SERVICE_OPTIONS, get_contact_markup, get_lawyer_approval_markup
 )
-from database import load_questions, save_questions, get_last_question_time
+from database_sqlite import (
+    save_question, get_question_by_id, get_all_questions, get_last_question_time, delete_question
+)
 from states_enum import States
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -22,7 +24,6 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def menu_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     text = update.message.text
-    # معالجة الحالات غير المتوقعة + زر العودة دائمًا
     if text == "العودة إلى القائمة الرئيسية":
         from telegram import ReplyKeyboardMarkup
         reply_markup = ReplyKeyboardMarkup(MAIN_MENU, resize_keyboard=True)
@@ -43,13 +44,12 @@ async def menu_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             reply_markup=reply_markup
         )
         return States.SERVICE_TYPE
-    elif text in sum(MAIN_MENU, []):  # باقي الأزرار
+    elif text in sum(MAIN_MENU, []):
         from telegram import ReplyKeyboardMarkup
         reply_markup = ReplyKeyboardMarkup(BACK_TO_MENU, resize_keyboard=True)
         await update.message.reply_text("سيتم تفعيل الخدمة قريبا", reply_markup=reply_markup)
         return ConversationHandler.END
     else:
-        # غير متوقع
         from telegram import ReplyKeyboardMarkup
         reply_markup = ReplyKeyboardMarkup(BACK_TO_MENU, resize_keyboard=True)
         await update.message.reply_text("يرجى اختيار خيار صحيح من القائمة أو اضغط العودة.", reply_markup=reply_markup)
@@ -119,8 +119,7 @@ async def question_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     chat_id = update.message.chat_id
 
     # حماية من السبام
-    user_questions = load_questions()
-    last_time = get_last_question_time(user_questions, chat_id)
+    last_time = get_last_question_time(chat_id)
     now = int(time.time())
     if last_time and (now - last_time) < SPAM_WAIT_SECONDS:
         from telegram import ReplyKeyboardMarkup
@@ -136,15 +135,7 @@ async def question_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     service_price = SERVICE_PRICES.get(service_type)
     service_display = SERVICE_NAMES_DISPLAY.get(service_type, service_type)
 
-    question_id = max(user_questions.keys(), default=0) + 1
-    user_questions[question_id] = {
-        "user_id": chat_id,
-        "question": question,
-        "service_type": service_type,
-        "service_price": service_price,
-        "timestamp": now
-    }
-    save_questions(user_questions)
+    question_id = save_question(chat_id, question, service_type, service_price, now)
 
     lawyer_markup = get_lawyer_approval_markup(question_id)
 
@@ -167,13 +158,13 @@ async def question_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def lawyer_callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     data = query.data
-    print("callback data:", data)  # للتتبع
+    print("callback data:", data)
     await query.answer()
-    user_questions = load_questions()
+
     if data.startswith("approve_"):
         question_id = int(data.replace("approve_", ""))
-        if question_id in user_questions:
-            q = user_questions[question_id]
+        q = get_question_by_id(question_id)
+        if q:
             user_id = q["user_id"]
             service_type = q["service_type"]
             service_price = q["service_price"]
@@ -202,14 +193,13 @@ async def lawyer_callback_handler(update: Update, context: ContextTypes.DEFAULT_
                 await query.edit_message_text(f"حدث خطأ أثناء محاولة إرسال رسالة القبول للمستخدم: {e}")
                 return
             await query.edit_message_text("تم إعلام المستخدم بالموافقة.")
-            del user_questions[question_id]
-            save_questions(user_questions)
+            delete_question(question_id)
         else:
             await query.edit_message_text("لم يتم العثور على هذا الاستفسار.")
     elif data.startswith("reject_"):
         question_id = int(data.replace("reject_", ""))
-        if question_id in user_questions:
-            q = user_questions[question_id]
+        q = get_question_by_id(question_id)
+        if q:
             user_id = q["user_id"]
             await context.bot.send_message(
                 chat_id=user_id,
@@ -217,14 +207,12 @@ async def lawyer_callback_handler(update: Update, context: ContextTypes.DEFAULT_
                      f"إذا كنت تعتقد أن هناك خطأ أو لديك أي استفسار، يرجى مراسلة حسابنا على التليجرام:\n@{LAWYER_USERNAME}",
                 reply_markup=ONLY_BACK_MARKUP
             )
-            del user_questions[question_id]
-            save_questions(user_questions)
+            delete_question(question_id)
             await query.edit_message_text("تم إرسال إشعار الرفض للمستخدم.")
         else:
             await query.edit_message_text("لم يتم العثور على هذا الاستفسار.")
     elif data.startswith("contact_"):
         try:
-            # التقسيم الصحيح حتى لو كان id فيه "_"
             method = data.split("_", 2)[1]
             if method == "telegram":
                 text = f"معلومات التواصل عبر التليجرام:\n@{LAWYER_USERNAME}"
