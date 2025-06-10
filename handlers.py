@@ -171,6 +171,7 @@ async def lawyer_callback_handler(update: Update, context: ContextTypes.DEFAULT_
             service_display = SERVICE_NAMES_DISPLAY.get(service_type, service_type)
             contact_markup = get_contact_markup(question_id)
 
+            # السعر فقط في سطر تكلفة الخدمة وليس مع اسم الخدمة
             if service_price is not None:
                 accept_message = (
                     "✅ تمت الموافقة على استفسارك من قبل المحامي.\n\n"
@@ -218,8 +219,12 @@ async def lawyer_callback_handler(update: Update, context: ContextTypes.DEFAULT_
             if method == "telegram":
                 text = f"اضغط هنا للتواصل عبر التليجرام:\nhttps://t.me/{LAWYER_USERNAME}"
             elif method == "whatsapp":
-                # إزالة + إن وجدت من رقم الواتساب
-                number = LAWYER_WHATSAPP.lstrip(" +")
+                # تجهيز الرقم بصيغة دولية بدون +
+                number = LAWYER_WHATSAPP.strip().replace("+", "").replace(" ", "")
+                if number.startswith("0"):
+                    number = "964" + number[1:]
+                elif not number.startswith("964"):
+                    number = "964" + number
                 text = f"اضغط هنا للتواصل عبر الواتساب:\nhttps://wa.me/{number}"
             elif method == "email":
                 text = f"اضغط هنا لإرسال بريد إلكتروني:\nmailto:{LAWYER_EMAIL}"

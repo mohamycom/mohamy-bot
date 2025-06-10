@@ -9,7 +9,7 @@ BACK_TO_MENU = [[KeyboardButton("العودة إلى القائمة الرئيس
 PAID_REPLY_MARKUP = ReplyKeyboardMarkup([["نعم، أوافق"], ["إلغاء"], ["العودة إلى القائمة الرئيسية"]], resize_keyboard=True)
 ONLY_BACK_MARKUP = ReplyKeyboardMarkup([["العودة إلى القائمة الرئيسية"]], resize_keyboard=True)
 
-# إزالة السعر من اسم الخدمة هنا (فقط الاسم)
+# اسم الخدمة فقط (بدون السعر)
 SERVICE_OPTIONS = [
     [
         "قضايا موظفي الدولة في الوزارات كافة",
