@@ -61,7 +61,6 @@ async def service_type_handler(update: Update, context: ContextTypes.DEFAULT_TYP
         context.user_data["selected_service_type"] = text
         service_price = SERVICE_PRICES.get(text)
         service_display = SERVICE_NAMES_DISPLAY.get(text, text)
-        # السعر يظهر فقط هنا وليس في اسم الخدمة
         if service_price is not None:
             price_msg = f"- تكلفة الاستشارة: {service_price:,} دينار عراقي."
         else:
@@ -171,7 +170,6 @@ async def lawyer_callback_handler(update: Update, context: ContextTypes.DEFAULT_
             service_display = SERVICE_NAMES_DISPLAY.get(service_type, service_type)
             contact_markup = get_contact_markup(question_id)
 
-            # السعر فقط في سطر تكلفة الخدمة وليس مع اسم الخدمة
             if service_price is not None:
                 accept_message = (
                     "✅ تمت الموافقة على استفسارك من قبل المحامي.\n\n"
@@ -215,11 +213,9 @@ async def lawyer_callback_handler(update: Update, context: ContextTypes.DEFAULT_
     elif data.startswith("contact_"):
         try:
             method = data.split("_", 2)[1]
-            # لا تعرض الرقم أو الإيميل، فقط الرابط
             if method == "telegram":
                 text = f"اضغط هنا للتواصل عبر التليجرام:\nhttps://t.me/{LAWYER_USERNAME}"
             elif method == "whatsapp":
-                # تجهيز الرقم بصيغة دولية بدون +
                 number = LAWYER_WHATSAPP.strip().replace("+", "").replace(" ", "")
                 if number.startswith("0"):
                     number = "964" + number[1:]
