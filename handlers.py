@@ -9,7 +9,7 @@ from keyboards import (
     MAIN_MENU, BACK_TO_MENU, PAID_REPLY_MARKUP, ONLY_BACK_MARKUP,
     SERVICE_OPTIONS, get_contact_markup, get_lawyer_approval_markup
 )
-from database_sqlite import (
+from database import (
     save_question, get_question_by_id, get_all_questions, get_last_question_time, delete_question
 )
 from states_enum import States
@@ -118,7 +118,6 @@ async def question_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user = update.message.from_user
     chat_id = update.message.chat_id
 
-    # حماية من السبام
     last_time = get_last_question_time(chat_id)
     now = int(time.time())
     if last_time and (now - last_time) < SPAM_WAIT_SECONDS:

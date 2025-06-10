@@ -9,7 +9,7 @@ from handlers import (
 from keyboards import MAIN_MENU
 from config import TOKEN
 from states_enum import States
-from database_sqlite import init_db  # استيراد تهيئة قاعدة البيانات
+from database import init_db  # الآن استورد من database.py (Postgres)
 
 def main():
     init_db()  # تهيئة قاعدة البيانات عند التشغيل
