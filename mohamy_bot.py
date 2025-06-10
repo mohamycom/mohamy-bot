@@ -25,7 +25,7 @@ def main():
 
     app.add_handler(CommandHandler("start", start))
     app.add_handler(conv_handler)
-    app.add_handler(CallbackQueryHandler(lawyer_callback_handler, pattern=r"^(approve_|reject_|contact_)"))
+    app.add_handler(CallbackQueryHandler(lawyer_callback_handler, pattern=r"^(approve_|reject_|contact_).*"))
     app.add_error_handler(error_handler)
 
     app.run_polling()

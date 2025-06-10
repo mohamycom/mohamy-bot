@@ -3,7 +3,7 @@ from telegram import Update
 from telegram.ext import ContextTypes, ConversationHandler
 from config import (
     WELCOME_MESSAGE, ABOUT_MESSAGE, LAWYER_USER_ID, LAWYER_USERNAME, ACCOUNT_NUMBER,
-    SERVICE_PRICES, SERVICE_NAMES_DISPLAY, SPAM_WAIT_SECONDS
+    SERVICE_PRICES, SERVICE_NAMES_DISPLAY, SPAM_WAIT_SECONDS, LAWYER_WHATSAPP, LAWYER_EMAIL
 )
 from keyboards import (
     MAIN_MENU, BACK_TO_MENU, PAID_REPLY_MARKUP, ONLY_BACK_MARKUP,
@@ -167,8 +167,8 @@ async def question_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def lawyer_callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     data = query.data
+    print("callback data:", data)  # للتتبع
     await query.answer()
-    from telegram import ReplyKeyboardMarkup
     user_questions = load_questions()
     if data.startswith("approve_"):
         question_id = int(data.replace("approve_", ""))
@@ -223,17 +223,20 @@ async def lawyer_callback_handler(update: Update, context: ContextTypes.DEFAULT_
         else:
             await query.edit_message_text("لم يتم العثور على هذا الاستفسار.")
     elif data.startswith("contact_"):
-        parts = data.split("_")
-        method = parts[1]
-        if method == "telegram":
-            text = f"معلومات التواصل عبر التليجرام:\n@{LAWYER_USERNAME}"
-        elif method == "whatsapp":
-            text = f"معلومات التواصل عبر الواتساب:\n{LAWYER_WHATSAPP}"
-        elif method == "email":
-            text = f"معلومات التواصل عبر البريد الإلكتروني:\n{LAWYER_EMAIL}"
-        else:
-            text = "طريقة التواصل غير معروفة."
-        await query.message.reply_text(text)
+        try:
+            # التقسيم الصحيح حتى لو كان id فيه "_"
+            method = data.split("_", 2)[1]
+            if method == "telegram":
+                text = f"معلومات التواصل عبر التليجرام:\n@{LAWYER_USERNAME}"
+            elif method == "whatsapp":
+                text = f"معلومات التواصل عبر الواتساب:\n{LAWYER_WHATSAPP}"
+            elif method == "email":
+                text = f"معلومات التواصل عبر البريد الإلكتروني:\n{LAWYER_EMAIL}"
+            else:
+                text = "طريقة التواصل غير معروفة."
+            await query.message.reply_text(text)
+        except Exception as e:
+            await query.message.reply_text(f"حدث خطأ داخلي: {e}")
 
 async def error_handler(update: object, context: ContextTypes.DEFAULT_TYPE):
     print(f"حدث خطأ: {context.error}")
