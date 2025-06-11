@@ -7,12 +7,27 @@ from config import (
 )
 from keyboards import (
     MAIN_MENU, BACK_TO_MENU, PAID_REPLY_MARKUP, ONLY_BACK_MARKUP,
-    SERVICE_OPTIONS, get_contact_markup, get_lawyer_approval_markup
+    SERVICE_OPTIONS, LEGAL_TIPS_BUTTONS, get_contact_markup, get_lawyer_approval_markup
 )
 from database import (
     save_question, get_question_by_id, get_all_questions, get_last_question_time, delete_question
 )
 from states_enum import States
+
+# خريطة الهاشتاجات إلى نص الزر
+LEGAL_TIPS_HASHTAGS = {
+    "الاحوال الشخصية": "الاحوال_الشخصية",
+    "الجرائم والعقوبات": "الجرائم_والعقوبات",
+    "العقود والاتفاقيات": "العقود_والاتفاقيات",
+    "العقارات والممتلكات": "العقارات_والممتلكات",
+    "السيارات والمرور": "السيارات_والمرور",
+    "القروض والديون": "القروض_والديون",
+    "السفر والجوازات": "السفر_والجوازات",
+    "حقوق المستهلك": "حقوق_المستهلك",
+    "الشكاوى والتظلمات": "الشكاوى_والتظلمات",
+    "نصائح قانونية": "نصائح_قانونية"
+}
+CHANNEL_USERNAME = "mohamycom_tips"  # بدون @
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     reply_markup = context.bot_data.get('main_menu_markup')
@@ -24,16 +39,19 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def menu_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     text = update.message.text
+
     if text == "العودة إلى القائمة الرئيسية":
         from telegram import ReplyKeyboardMarkup
         reply_markup = ReplyKeyboardMarkup(MAIN_MENU, resize_keyboard=True)
         await update.message.reply_text(WELCOME_MESSAGE, reply_markup=reply_markup)
         return ConversationHandler.END
+
     elif text == "عن (محامي.كوم)":
         from telegram import ReplyKeyboardMarkup
         reply_markup = ReplyKeyboardMarkup(BACK_TO_MENU, resize_keyboard=True)
         await update.message.reply_text(ABOUT_MESSAGE, reply_markup=reply_markup)
         return ConversationHandler.END
+
     elif text == "خدماتنا المدفوعة":
         from telegram import ReplyKeyboardMarkup
         reply_markup = ReplyKeyboardMarkup(SERVICE_OPTIONS, resize_keyboard=True)
@@ -44,16 +62,62 @@ async def menu_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             reply_markup=reply_markup
         )
         return States.SERVICE_TYPE
+
+    elif text == "نصائح وارشادات قانونية":
+        from telegram import ReplyKeyboardMarkup
+        reply_markup = ReplyKeyboardMarkup(LEGAL_TIPS_BUTTONS, resize_keyboard=True)
+        await update.message.reply_text(
+            "اختر القسم الذي ترغب بقراءة نصائحه القانونية أو تصفح جميع النصائح:",
+            reply_markup=reply_markup
+        )
+        return States.LEGAL_TIPS
+
     elif text in sum(MAIN_MENU, []):
         from telegram import ReplyKeyboardMarkup
         reply_markup = ReplyKeyboardMarkup(BACK_TO_MENU, resize_keyboard=True)
         await update.message.reply_text("سيتم تفعيل الخدمة قريبا", reply_markup=reply_markup)
         return ConversationHandler.END
+
     else:
         from telegram import ReplyKeyboardMarkup
         reply_markup = ReplyKeyboardMarkup(BACK_TO_MENU, resize_keyboard=True)
         await update.message.reply_text("يرجى اختيار خيار صحيح من القائمة أو اضغط العودة.", reply_markup=reply_markup)
         return ConversationHandler.END
+
+async def legal_tips_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    text = update.message.text.strip()
+    from telegram import ReplyKeyboardMarkup
+
+    if text == "العودة إلى القائمة الرئيسية":
+        reply_markup = ReplyKeyboardMarkup(MAIN_MENU, resize_keyboard=True)
+        await update.message.reply_text(WELCOME_MESSAGE, reply_markup=reply_markup)
+        return ConversationHandler.END
+
+    elif text == "تصفح جميع النصائح القانونية":
+        url = f"https://t.me/{CHANNEL_USERNAME}"
+        await update.message.reply_text(
+            "تصفح جميع النصائح القانونية في قناتنا:",
+            reply_markup=ReplyKeyboardMarkup(LEGAL_TIPS_BUTTONS, resize_keyboard=True)
+        )
+        # تحويل صامت (مسافة غير مرئية)
+        await update.message.reply_text(f'<a href="{url}">&#8205;</a>', parse_mode="HTML", disable_web_page_preview=True)
+        return States.LEGAL_TIPS
+
+    elif text in LEGAL_TIPS_HASHTAGS:
+        hashtag = LEGAL_TIPS_HASHTAGS[text]
+        url = f"https://t.me/s/{CHANNEL_USERNAME}?q=%23{hashtag}"
+        await update.message.reply_text(
+            f"جاري تحويلك مباشرة إلى نصائح قسم {text}...",
+            reply_markup=ReplyKeyboardMarkup(LEGAL_TIPS_BUTTONS, resize_keyboard=True)
+        )
+        # تحويل صامت (مسافة غير مرئية)
+        await update.message.reply_text(f'<a href="{url}">&#8205;</a>', parse_mode="HTML", disable_web_page_preview=True)
+        return States.LEGAL_TIPS
+
+    else:
+        reply_markup = ReplyKeyboardMarkup(LEGAL_TIPS_BUTTONS, resize_keyboard=True)
+        await update.message.reply_text("يرجى اختيار قسم صحيح أو العودة.", reply_markup=reply_markup)
+        return States.LEGAL_TIPS
 
 async def service_type_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     text = update.message.text
