@@ -1,4 +1,4 @@
-from telegram import ReplyKeyboardMarkup, KeyboardButton
+from telegram import ReplyKeyboardMarkup, KeyboardButton, InlineKeyboardMarkup, InlineKeyboardButton
 
 MAIN_MENU = [
     ["استشارات قانونية (تلقائية)", "خدماتنا المدفوعة"],
@@ -20,3 +20,18 @@ SERVICE_OPTIONS = [
     ],
     ["العودة إلى القائمة الرئيسية"]
 ]
+
+def get_contact_markup(question_id):
+    return InlineKeyboardMarkup([
+        [InlineKeyboardButton("التواصل عبر التليجرام", callback_data=f"contact_telegram_{question_id}")],
+        [InlineKeyboardButton("التواصل عبر الواتساب", callback_data=f"contact_whatsapp_{question_id}")],
+        [InlineKeyboardButton("التواصل عبر الايميل", callback_data=f"contact_email_{question_id}")]
+    ])
+
+def get_lawyer_approval_markup(question_id):
+    return InlineKeyboardMarkup([
+        [
+            InlineKeyboardButton("موافقة", callback_data=f"approve_{question_id}"),
+            InlineKeyboardButton("رفض", callback_data=f"reject_{question_id}")
+        ]
+    ])
