@@ -1,5 +1,5 @@
 import time
-from telegram import Update
+from telegram import Update, ReplyKeyboardMarkup, InlineKeyboardMarkup, InlineKeyboardButton
 from telegram.ext import ContextTypes, ConversationHandler
 from config import (
     WELCOME_MESSAGE, ABOUT_MESSAGE, LAWYER_USER_ID, LAWYER_USERNAME, ACCOUNT_NUMBER,
@@ -25,14 +25,13 @@ LEGAL_TIPS_HASHTAGS = {
     "السفر والجوازات": "السفر_والجوازات",
     "حقوق المستهلك": "حقوق_المستهلك",
     "الشكاوى والتظلمات": "الشكاوى_والتظلمات",
-    "نصائح قانونية": "نصائح_قانونية"
+    "نصائح عامة": "نصائح_قانونية"    # تم تغيير التسمية هنا
 }
 CHANNEL_USERNAME = "mohamycom_tips"  # بدون @
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     reply_markup = context.bot_data.get('main_menu_markup')
     if not reply_markup:
-        from telegram import ReplyKeyboardMarkup
         reply_markup = ReplyKeyboardMarkup(MAIN_MENU, resize_keyboard=True)
         context.bot_data['main_menu_markup'] = reply_markup
     await update.message.reply_text(WELCOME_MESSAGE, reply_markup=reply_markup)
@@ -41,19 +40,16 @@ async def menu_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     text = update.message.text
 
     if text == "العودة إلى القائمة الرئيسية":
-        from telegram import ReplyKeyboardMarkup
         reply_markup = ReplyKeyboardMarkup(MAIN_MENU, resize_keyboard=True)
         await update.message.reply_text(WELCOME_MESSAGE, reply_markup=reply_markup)
         return ConversationHandler.END
 
     elif text == "عن (محامي.كوم)":
-        from telegram import ReplyKeyboardMarkup
         reply_markup = ReplyKeyboardMarkup(BACK_TO_MENU, resize_keyboard=True)
         await update.message.reply_text(ABOUT_MESSAGE, reply_markup=reply_markup)
         return ConversationHandler.END
 
     elif text == "خدماتنا المدفوعة":
-        from telegram import ReplyKeyboardMarkup
         reply_markup = ReplyKeyboardMarkup(SERVICE_OPTIONS, resize_keyboard=True)
         await update.message.reply_text(
             "🟢 الخدمة المدفوعة - استشارة خاصة\n\n"
@@ -64,7 +60,6 @@ async def menu_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return States.SERVICE_TYPE
 
     elif text == "نصائح وارشادات قانونية":
-        from telegram import ReplyKeyboardMarkup
         reply_markup = ReplyKeyboardMarkup(LEGAL_TIPS_BUTTONS, resize_keyboard=True)
         await update.message.reply_text(
             "اختر القسم الذي ترغب بقراءة نصائحه القانونية أو تصفح جميع النصائح:",
@@ -73,21 +68,17 @@ async def menu_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return States.LEGAL_TIPS
 
     elif text in sum(MAIN_MENU, []):
-        from telegram import ReplyKeyboardMarkup
         reply_markup = ReplyKeyboardMarkup(BACK_TO_MENU, resize_keyboard=True)
         await update.message.reply_text("سيتم تفعيل الخدمة قريبا", reply_markup=reply_markup)
         return ConversationHandler.END
 
     else:
-        from telegram import ReplyKeyboardMarkup
         reply_markup = ReplyKeyboardMarkup(BACK_TO_MENU, resize_keyboard=True)
         await update.message.reply_text("يرجى اختيار خيار صحيح من القائمة أو اضغط العودة.", reply_markup=reply_markup)
         return ConversationHandler.END
 
 async def legal_tips_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     text = update.message.text.strip()
-    from telegram import ReplyKeyboardMarkup
-
     if text == "العودة إلى القائمة الرئيسية":
         reply_markup = ReplyKeyboardMarkup(MAIN_MENU, resize_keyboard=True)
         await update.message.reply_text(WELCOME_MESSAGE, reply_markup=reply_markup)
@@ -99,19 +90,23 @@ async def legal_tips_handler(update: Update, context: ContextTypes.DEFAULT_TYPE)
             "تصفح جميع النصائح القانونية في قناتنا:",
             reply_markup=ReplyKeyboardMarkup(LEGAL_TIPS_BUTTONS, resize_keyboard=True)
         )
-        # تحويل صامت (مسافة غير مرئية)
-        await update.message.reply_text(f'<a href="{url}">&#8205;</a>', parse_mode="HTML", disable_web_page_preview=True)
+        await update.message.reply_text(
+            "اضغط على الزر أدناه للانتقال إلى قناة النصائح:",
+            reply_markup=InlineKeyboardMarkup([
+                [InlineKeyboardButton("عرض كل النصائح", url=url)]
+            ])
+        )
         return States.LEGAL_TIPS
 
     elif text in LEGAL_TIPS_HASHTAGS:
         hashtag = LEGAL_TIPS_HASHTAGS[text]
         url = f"https://t.me/s/{CHANNEL_USERNAME}?q=%23{hashtag}"
         await update.message.reply_text(
-            f"جاري تحويلك مباشرة إلى نصائح قسم {text}...",
-            reply_markup=ReplyKeyboardMarkup(LEGAL_TIPS_BUTTONS, resize_keyboard=True)
+            f"اضغط على الزر أدناه للانتقال إلى نصائح قسم {text}:",
+            reply_markup=InlineKeyboardMarkup([
+                [InlineKeyboardButton(f"نصائح {text}", url=url)]
+            ])
         )
-        # تحويل صامت (مسافة غير مرئية)
-        await update.message.reply_text(f'<a href="{url}">&#8205;</a>', parse_mode="HTML", disable_web_page_preview=True)
         return States.LEGAL_TIPS
 
     else:
@@ -138,12 +133,10 @@ async def service_type_handler(update: Update, context: ContextTypes.DEFAULT_TYP
         )
         return States.PAID_SERVICE
     elif text == "العودة إلى القائمة الرئيسية":
-        from telegram import ReplyKeyboardMarkup
         reply_markup = ReplyKeyboardMarkup(MAIN_MENU, resize_keyboard=True)
         await update.message.reply_text(WELCOME_MESSAGE, reply_markup=reply_markup)
         return ConversationHandler.END
     else:
-        from telegram import ReplyKeyboardMarkup
         reply_markup = ReplyKeyboardMarkup(SERVICE_OPTIONS, resize_keyboard=True)
         await update.message.reply_text("يرجى اختيار نوع خدمة من القائمة أو العودة.", reply_markup=reply_markup)
         return States.SERVICE_TYPE
@@ -161,12 +154,10 @@ async def paid_service_handler(update: Update, context: ContextTypes.DEFAULT_TYP
         )
         return States.WAITING_QUESTION
     elif text == "العودة إلى القائمة الرئيسية":
-        from telegram import ReplyKeyboardMarkup
         reply_markup = ReplyKeyboardMarkup(MAIN_MENU, resize_keyboard=True)
         await update.message.reply_text(WELCOME_MESSAGE, reply_markup=reply_markup)
         return ConversationHandler.END
     else:
-        from telegram import ReplyKeyboardMarkup
         reply_markup = ReplyKeyboardMarkup(MAIN_MENU, resize_keyboard=True)
         await update.message.reply_text("تم إلغاء الطلب.", reply_markup=reply_markup)
         return ConversationHandler.END
@@ -174,7 +165,6 @@ async def paid_service_handler(update: Update, context: ContextTypes.DEFAULT_TYP
 async def question_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     text = update.message.text
     if text == "العودة إلى القائمة الرئيسية":
-        from telegram import ReplyKeyboardMarkup
         reply_markup = ReplyKeyboardMarkup(MAIN_MENU, resize_keyboard=True)
         await update.message.reply_text(WELCOME_MESSAGE, reply_markup=reply_markup)
         return ConversationHandler.END
@@ -185,7 +175,6 @@ async def question_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     last_time = get_last_question_time(chat_id)
     now = int(time.time())
     if last_time and (now - last_time) < SPAM_WAIT_SECONDS:
-        from telegram import ReplyKeyboardMarkup
         reply_markup = ReplyKeyboardMarkup(MAIN_MENU, resize_keyboard=True)
         await update.message.reply_text(
             "لقد أرسلت استفسارًا مؤخرًا. يرجى الانتظار 5 دقائق قبل إرسال استفسار جديد.",
