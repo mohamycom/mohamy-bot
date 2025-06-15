@@ -71,8 +71,8 @@ async def menu_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return ConversationHandler.END
     else:
         from telegram import ReplyKeyboardMarkup
-        reply_markup = ReplyKeyboardMarkup(BACK_TO_MENU, resize_keyboard=True)
-        await update.message.reply_text("يرجى اختيار خيار صحيح من القائمة أو اضغط العودة.", reply_markup=reply_markup)
+        reply_markup = ReplyKeyboardMarkup(MAIN_MENU, resize_keyboard=True)
+        await update.message.reply_text("❗️عذراً، لم أفهم طلبك. يرجى اختيار أحد الخيارات من القائمة بالأسفل.", reply_markup=reply_markup)
         return ConversationHandler.END
 
 async def service_type_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
