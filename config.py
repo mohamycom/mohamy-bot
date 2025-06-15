@@ -2,8 +2,10 @@ import os
 
 TOKEN = os.environ.get("BOT_TOKEN")
 
-LAWYER_USER_ID = 8109994800
-LAWYER_USERNAME = "mohamycom"
+# تم إخفاء المتغيرات الحساسة
+LAWYER_USER_ID = int(os.environ.get("LAWYER_USER_ID"))
+LAWYER_USERNAME = os.environ.get("LAWYER_USERNAME")
+
 LAWYER_EMAIL = "mohamycom@proton.me"
 LAWYER_WHATSAPP = "07775535047"
 ACCOUNT_NUMBER = "9916153415"
@@ -42,7 +44,6 @@ SERVICE_PRICES = {
     "استفسارات قانونية اخرى": None
 }
 
-# اسم الخدمة فقط، بدون السعر بجانبه
 SERVICE_NAMES_DISPLAY = {
     "قضايا موظفي الدولة في الوزارات كافة": "قضايا موظفي الدولة في الوزارات كافة",
     "قضايا منتسبي الجيش العراقي (ضباطا ومراتب)": "قضايا منتسبي الجيش العراقي (ضباطا ومراتب)",

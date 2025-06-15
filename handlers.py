@@ -1,4 +1,5 @@
 import time
+import re
 from telegram import Update, InlineKeyboardMarkup, InlineKeyboardButton
 from telegram.ext import ContextTypes, ConversationHandler
 from config import (
@@ -23,13 +24,17 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         reply_markup = ReplyKeyboardMarkup(MAIN_MENU, resize_keyboard=True)
         context.bot_data['main_menu_markup'] = reply_markup
     await update.message.reply_text(WELCOME_MESSAGE, reply_markup=reply_markup)
+    # تنظيف بيانات الجلسة عند البدء
+    context.user_data.clear()
 
 async def menu_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     text = update.message.text
+    # تنظيف بيانات الجلسة عند العودة للقائمة الرئيسية
     if text == "العودة إلى القائمة الرئيسية":
         from telegram import ReplyKeyboardMarkup
         reply_markup = ReplyKeyboardMarkup(MAIN_MENU, resize_keyboard=True)
         await update.message.reply_text(WELCOME_MESSAGE, reply_markup=reply_markup)
+        context.user_data.clear()
         return ConversationHandler.END
     elif text == "عن (محامي.كوم)":
         from telegram import ReplyKeyboardMarkup
@@ -97,6 +102,7 @@ async def service_type_handler(update: Update, context: ContextTypes.DEFAULT_TYP
         from telegram import ReplyKeyboardMarkup
         reply_markup = ReplyKeyboardMarkup(MAIN_MENU, resize_keyboard=True)
         await update.message.reply_text(WELCOME_MESSAGE, reply_markup=reply_markup)
+        context.user_data.clear()
         return ConversationHandler.END
     else:
         from telegram import ReplyKeyboardMarkup
@@ -120,11 +126,13 @@ async def paid_service_handler(update: Update, context: ContextTypes.DEFAULT_TYP
         from telegram import ReplyKeyboardMarkup
         reply_markup = ReplyKeyboardMarkup(MAIN_MENU, resize_keyboard=True)
         await update.message.reply_text(WELCOME_MESSAGE, reply_markup=reply_markup)
+        context.user_data.clear()
         return ConversationHandler.END
     else:
         from telegram import ReplyKeyboardMarkup
         reply_markup = ReplyKeyboardMarkup(MAIN_MENU, resize_keyboard=True)
         await update.message.reply_text("تم إلغاء الطلب.", reply_markup=reply_markup)
+        context.user_data.clear()
         return ConversationHandler.END
 
 async def question_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -133,6 +141,7 @@ async def question_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         from telegram import ReplyKeyboardMarkup
         reply_markup = ReplyKeyboardMarkup(MAIN_MENU, resize_keyboard=True)
         await update.message.reply_text(WELCOME_MESSAGE, reply_markup=reply_markup)
+        context.user_data.clear()
         return ConversationHandler.END
 
     user = update.message.from_user
@@ -147,6 +156,7 @@ async def question_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             "لقد أرسلت استفسارًا مؤخرًا. يرجى الانتظار 5 دقائق قبل إرسال استفسار جديد.",
             reply_markup=reply_markup
         )
+        context.user_data.clear()
         return ConversationHandler.END
 
     question = text
@@ -172,6 +182,7 @@ async def question_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         reply_markup=ONLY_BACK_MARKUP
     )
     await context.bot.send_message(chat_id=LAWYER_USER_ID, text=msg, reply_markup=lawyer_markup)
+    context.user_data.clear()
     return ConversationHandler.END
 
 async def lawyer_callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -179,6 +190,11 @@ async def lawyer_callback_handler(update: Update, context: ContextTypes.DEFAULT_
     data = query.data
     print("callback data:", data)
     await query.answer()
+
+    # تحقق من صلاحيات المحامي
+    if query.from_user.id != LAWYER_USER_ID:
+        await query.answer("غير مصرح لك بهذا الإجراء", show_alert=True)
+        return
 
     if data.startswith("approve_"):
         question_id = int(data.replace("approve_", ""))
@@ -189,7 +205,6 @@ async def lawyer_callback_handler(update: Update, context: ContextTypes.DEFAULT_
             service_price = q["service_price"]
             service_display = SERVICE_NAMES_DISPLAY.get(service_type, service_type)
             contact_markup = get_contact_markup(question_id)
-
             if service_price is not None:
                 accept_message = (
                     "✅ تمت الموافقة على استفسارك من قبل المحامي.\n\n"
@@ -233,10 +248,14 @@ async def lawyer_callback_handler(update: Update, context: ContextTypes.DEFAULT_
     elif data.startswith("contact_"):
         try:
             method = data.split("_", 2)[1]
+            # تحقق من صحة رقم الواتساب قبل إنشاء الرابط
             if method == "telegram":
                 text = f"اضغط هنا للتواصل عبر التليجرام:\nhttps://t.me/{LAWYER_USERNAME}"
             elif method == "whatsapp":
                 number = LAWYER_WHATSAPP.strip().replace("+", "").replace(" ", "")
+                if not re.match(r'^[0-9]{8,15}$', number):
+                    await query.message.reply_text("رقم الواتساب غير صحيح.")
+                    return
                 if number.startswith("0"):
                     number = "964" + number[1:]
                 elif not number.startswith("964"):
