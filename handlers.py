@@ -55,6 +55,15 @@ async def menu_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             ])
         )
         return ConversationHandler.END
+    elif text == "استشارات قانونية (تلقائية)":
+        url = "https://t.me/IrMoLaBot"
+        await update.message.reply_text(
+            "للحصول على استشارة قانونية تلقائية مباشرة، اضغط الزر أدناه للدخول إلى البوت:",
+            reply_markup=InlineKeyboardMarkup([
+                [InlineKeyboardButton("الدخول إلى بوت الاستشارات", url=url)]
+            ])
+        )
+        return ConversationHandler.END
     elif text in sum(MAIN_MENU, []):
         from telegram import ReplyKeyboardMarkup
         reply_markup = ReplyKeyboardMarkup(BACK_TO_MENU, resize_keyboard=True)
