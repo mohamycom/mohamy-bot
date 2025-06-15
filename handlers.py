@@ -191,63 +191,68 @@ async def lawyer_callback_handler(update: Update, context: ContextTypes.DEFAULT_
     print("callback data:", data)
     await query.answer()
 
-    # تحقق من صلاحيات المحامي
-    if query.from_user.id != LAWYER_USER_ID:
-        await query.answer("غير مصرح لك بهذا الإجراء", show_alert=True)
+    # نتحقق من صلاحية المحامي فقط في حال الموافقة أو الرفض
+    if data.startswith("approve_") or data.startswith("reject_"):
+        if query.from_user.id != LAWYER_USER_ID:
+            await query.answer("غير مصرح لك بهذا الإجراء", show_alert=True)
+            return
+
+        if data.startswith("approve_"):
+            question_id = int(data.replace("approve_", ""))
+            q = get_question_by_id(question_id)
+            if q:
+                user_id = q["user_id"]
+                service_type = q["service_type"]
+                service_price = q["service_price"]
+                service_display = SERVICE_NAMES_DISPLAY.get(service_type, service_type)
+                contact_markup = get_contact_markup(question_id)
+                if service_price is not None:
+                    accept_message = (
+                        "✅ تمت الموافقة على استفسارك من قبل المحامي.\n\n"
+                        f"نوع الخدمة: {service_display}\n"
+                        f"تكلفة الخدمة: {service_price:,} دينار عراقي\n\n"
+                        f"يرجى التحويل الى رقم الحساب الاتي  {ACCOUNT_NUMBER}\n\n"
+                        "بعد التحويل يمكنك اختيار طريقة التواصل التي تناسبك بالضغط على الزر المناسب 👇"
+                    )
+                else:
+                    accept_message = (
+                        "✅ تمت الموافقة على استفسارك من قبل المحامي.\n\n"
+                        f"نوع الخدمة: {service_display}\n"
+                        "تكلفة الخدمة: سيتم إعلامك بالسعر بعد مراجعة المحامي.\n\n"
+                        f"يرجى التحويل الى رقم الحساب الاتي  {ACCOUNT_NUMBER}\n\n"
+                        "بعد التحويل يمكنك اختيار طريقة التواصل التي تناسبك بالضغط على الزر المناسب 👇"
+                    )
+                try:
+                    await context.bot.send_message(chat_id=user_id, text=accept_message, reply_markup=contact_markup)
+                except Exception as e:
+                    await query.edit_message_text(f"حدث خطأ أثناء محاولة إرسال رسالة القبول للمستخدم: {e}")
+                    return
+                await query.edit_message_text("تم إعلام المستخدم بالموافقة.")
+                delete_question(question_id)
+            else:
+                await query.edit_message_text("لم يتم العثور على هذا الاستفسار.")
+        elif data.startswith("reject_"):
+            question_id = int(data.replace("reject_", ""))
+            q = get_question_by_id(question_id)
+            if q:
+                user_id = q["user_id"]
+                await context.bot.send_message(
+                    chat_id=user_id,
+                    text=f"❌ تم رفض استفسارك من قبل المحامي.\n\n"
+                        f"إذا كنت تعتقد أن هناك خطأ أو لديك أي استفسار، يرجى مراسلة حسابنا على التليجرام:\n@{LAWYER_USERNAME}",
+                    reply_markup=ONLY_BACK_MARKUP
+                )
+                delete_question(question_id)
+                await query.edit_message_text("تم إرسال إشعار الرفض للمستخدم.")
+            else:
+                await query.edit_message_text("لم يتم العثور على هذا الاستفسار.")
         return
 
-    if data.startswith("approve_"):
-        question_id = int(data.replace("approve_", ""))
-        q = get_question_by_id(question_id)
-        if q:
-            user_id = q["user_id"]
-            service_type = q["service_type"]
-            service_price = q["service_price"]
-            service_display = SERVICE_NAMES_DISPLAY.get(service_type, service_type)
-            contact_markup = get_contact_markup(question_id)
-            if service_price is not None:
-                accept_message = (
-                    "✅ تمت الموافقة على استفسارك من قبل المحامي.\n\n"
-                    f"نوع الخدمة: {service_display}\n"
-                    f"تكلفة الخدمة: {service_price:,} دينار عراقي\n\n"
-                    f"يرجى التحويل الى رقم الحساب الاتي  {ACCOUNT_NUMBER}\n\n"
-                    "بعد التحويل يمكنك اختيار طريقة التواصل التي تناسبك بالضغط على الزر المناسب 👇"
-                )
-            else:
-                accept_message = (
-                    "✅ تمت الموافقة على استفسارك من قبل المحامي.\n\n"
-                    f"نوع الخدمة: {service_display}\n"
-                    "تكلفة الخدمة: سيتم إعلامك بالسعر بعد مراجعة المحامي.\n\n"
-                    f"يرجى التحويل الى رقم الحساب الاتي  {ACCOUNT_NUMBER}\n\n"
-                    "بعد التحويل يمكنك اختيار طريقة التواصل التي تناسبك بالضغط على الزر المناسب 👇"
-                )
-            try:
-                await context.bot.send_message(chat_id=user_id, text=accept_message, reply_markup=contact_markup)
-            except Exception as e:
-                await query.edit_message_text(f"حدث خطأ أثناء محاولة إرسال رسالة القبول للمستخدم: {e}")
-                return
-            await query.edit_message_text("تم إعلام المستخدم بالموافقة.")
-            delete_question(question_id)
-        else:
-            await query.edit_message_text("لم يتم العثور على هذا الاستفسار.")
-    elif data.startswith("reject_"):
-        question_id = int(data.replace("reject_", ""))
-        q = get_question_by_id(question_id)
-        if q:
-            user_id = q["user_id"]
-            await context.bot.send_message(
-                chat_id=user_id,
-                text=f"❌ تم رفض استفسارك من قبل المحامي.\n\n"
-                     f"إذا كنت تعتقد أن هناك خطأ أو لديك أي استفسار، يرجى مراسلة حسابنا على التليجرام:\n@{LAWYER_USERNAME}",
-                reply_markup=ONLY_BACK_MARKUP
-            )
-            delete_question(question_id)
-            await query.edit_message_text("تم إرسال إشعار الرفض للمستخدم.")
-        else:
-            await query.edit_message_text("لم يتم العثور على هذا الاستفسار.")
-    elif data.startswith("contact_"):
+    # أزرار التواصل متاحة للجميع
+    if data.startswith("contact_"):
         try:
-            method = data.split("_", 2)[1]
+            parts = data.split("_", 2)
+            method = parts[1]
             # تحقق من صحة رقم الواتساب قبل إنشاء الرابط
             if method == "telegram":
                 text = f"اضغط هنا للتواصل عبر التليجرام:\nhttps://t.me/{LAWYER_USERNAME}"
