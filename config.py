@@ -2,15 +2,29 @@ import os
 
 TOKEN = os.environ.get("BOT_TOKEN")
 
-# تم إخفاء المتغيرات الحساسة
-LAWYER_USER_ID = int(os.environ.get("LAWYER_USER_ID"))
+# التحقق من وجود وصحة LAWYER_USER_ID
+raw_lawyer_id = os.environ.get("LAWYER_USER_ID")
+if not raw_lawyer_id or not raw_lawyer_id.isdigit():
+    raise RuntimeError("Missing or invalid LAWYER_USER_ID")
+LAWYER_USER_ID = int(raw_lawyer_id)
+
 LAWYER_USERNAME = os.environ.get("LAWYER_USERNAME")
 
-LAWYER_EMAIL = "mohamycom@proton.me"
-LAWYER_WHATSAPP = "07775535047"
-ACCOUNT_NUMBER = "9916153415"
+# المتغيرات الحساسة من البيئة
+LAWYER_EMAIL = os.environ.get("LAWYER_EMAIL")
+if not LAWYER_EMAIL:
+    raise RuntimeError("Missing LAWYER_EMAIL environment variable")
 
-QUESTIONS_FILE = "user_questions.json"
+LAWYER_WHATSAPP = os.environ.get("LAWYER_WHATSAPP")
+if not LAWYER_WHATSAPP:
+    raise RuntimeError("Missing LAWYER_WHATSAPP environment variable")
+
+ACCOUNT_NUMBER = os.environ.get("ACCOUNT_NUMBER")
+if not ACCOUNT_NUMBER:
+    raise RuntimeError("Missing ACCOUNT_NUMBER environment variable")
+
+# تم حذف QUESTIONS_FILE لأنه غير مستخدم
+
 SPAM_WAIT_SECONDS = 5 * 60  # 5 دقائق
 
 WELCOME_MESSAGE = (

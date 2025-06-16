@@ -21,6 +21,7 @@ def init_db():
         )
     ''')
     conn.commit()
+    cursor.close()
     conn.close()
 
 def save_question(user_id, question, service_type, service_price, timestamp):
@@ -33,6 +34,7 @@ def save_question(user_id, question, service_type, service_price, timestamp):
     ''', (user_id, question, service_type, service_price, timestamp))
     question_id = cursor.fetchone()[0]
     conn.commit()
+    cursor.close()
     conn.close()
     return question_id
 
@@ -41,6 +43,7 @@ def get_question_by_id(question_id):
     cursor = conn.cursor()
     cursor.execute('SELECT * FROM questions WHERE id = %s', (question_id,))
     row = cursor.fetchone()
+    cursor.close()
     conn.close()
     if row:
         return {
@@ -58,6 +61,7 @@ def get_all_questions():
     cursor = conn.cursor()
     cursor.execute('SELECT * FROM questions')
     rows = cursor.fetchall()
+    cursor.close()
     conn.close()
     questions = {}
     for row in rows:
@@ -76,6 +80,7 @@ def get_last_question_time(user_id):
     cursor = conn.cursor()
     cursor.execute('SELECT MAX(timestamp) FROM questions WHERE user_id = %s', (user_id,))
     row = cursor.fetchone()
+    cursor.close()
     conn.close()
     return row[0] if row and row[0] else None
 
@@ -84,4 +89,7 @@ def delete_question(question_id):
     cursor = conn.cursor()
     cursor.execute('DELETE FROM questions WHERE id = %s', (question_id,))
     conn.commit()
+    cursor.close()
     conn.close()
+
+# ملاحظة: من الأفضل استخدام connection pooling أو ORM مثل SQLAlchemy في المستقبل
