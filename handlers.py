@@ -17,18 +17,16 @@ from states_enum import States
 
 CHANNEL_USERNAME = "mohamycom_tips"  # اسم قناتك بدون @
 
-# دالة مساعدة لفحص السبام للمستخدمين فقط
-def is_spam(update: Update, context: ContextTypes.DEFAULT_TYPE):
+# حماية سبام لكل زر/خدمة بشكل مستقل
+def is_spam_per_action(update, context, action_name):
     user_id = update.effective_user.id
-    # إذا كان الادمن لا نطبق حماية السبام
     if user_id == LAWYER_USER_ID:
         return False
     now = int(time.time())
-    last_action = context.user_data.get('last_action_time', 0)
-    # استثناء زر العودة (يتم فحص النص مباشرة في الهاندلرات)
+    last_action = context.user_data.get(f'last_action_time_{action_name}', 0)
     if now - last_action < 15:
         return True
-    context.user_data['last_action_time'] = now
+    context.user_data[f'last_action_time_{action_name}'] = now
     return False
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -38,19 +36,24 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         reply_markup = ReplyKeyboardMarkup(MAIN_MENU, resize_keyboard=True)
         context.bot_data['main_menu_markup'] = reply_markup
     await update.message.reply_text(WELCOME_MESSAGE, reply_markup=reply_markup)
-    # تنظيف بيانات الجلسة عند البدء
     context.user_data.clear()
 
 async def menu_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     text = update.message.text
-    # حماية سبام (باستثناء العودة)
-    if text != "العودة إلى القائمة الرئيسية" and is_spam(update, context):
+    button_map = {
+        "استشارات فورية": "fast_consult",
+        "نصائح وارشادات قانونية": "tips",
+        "تواصل مع محامي": "contact_lawyer",
+        "عن (محاميكم)": "about",
+        "العودة إلى القائمة الرئيسية": "main_menu"
+    }
+    action_name = button_map.get(text, "other_menu")
+    if text != "العودة إلى القائمة الرئيسية" and is_spam_per_action(update, context, action_name):
         from telegram import ReplyKeyboardMarkup
         reply_markup = ReplyKeyboardMarkup(MAIN_MENU, resize_keyboard=True)
         await update.message.reply_text("يرجى الانتظار 15 ثانية قبل إعادة المحاولة.", reply_markup=reply_markup)
         return ConversationHandler.END
 
-    # تنظيف بيانات الجلسة عند العودة للقائمة الرئيسية
     if text == "العودة إلى القائمة الرئيسية":
         from telegram import ReplyKeyboardMarkup
         reply_markup = ReplyKeyboardMarkup(MAIN_MENU, resize_keyboard=True)
@@ -103,8 +106,8 @@ async def menu_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def service_type_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     text = update.message.text
-    # حماية سبام
-    if text != "العودة إلى القائمة الرئيسية" and is_spam(update, context):
+    action_name = text
+    if text != "العودة إلى القائمة الرئيسية" and is_spam_per_action(update, context, action_name):
         from telegram import ReplyKeyboardMarkup
         reply_markup = ReplyKeyboardMarkup(SERVICE_OPTIONS, resize_keyboard=True)
         await update.message.reply_text("يرجى الانتظار 15 ثانية قبل إعادة المحاولة.", reply_markup=reply_markup)
@@ -140,8 +143,8 @@ async def service_type_handler(update: Update, context: ContextTypes.DEFAULT_TYP
 
 async def paid_service_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     text = update.message.text
-    # حماية سبام
-    if text not in ["العودة إلى القائمة الرئيسية", "إلغاء"] and is_spam(update, context):
+    action_name = text
+    if text not in ["العودة إلى القائمة الرئيسية", "إلغاء"] and is_spam_per_action(update, context, action_name):
         from telegram import ReplyKeyboardMarkup
         reply_markup = ReplyKeyboardMarkup(PAID_REPLY_MARKUP.keyboard, resize_keyboard=True)
         await update.message.reply_text("يرجى الانتظار 15 ثانية قبل إعادة المحاولة.", reply_markup=reply_markup)
@@ -172,8 +175,8 @@ async def paid_service_handler(update: Update, context: ContextTypes.DEFAULT_TYP
 
 async def question_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     text = update.message.text
-    # حماية سبام
-    if text != "العودة إلى القائمة الرئيسية" and is_spam(update, context):
+    action_name = "question"
+    if text != "العودة إلى القائمة الرئيسية" and is_spam_per_action(update, context, action_name):
         from telegram import ReplyKeyboardMarkup
         reply_markup = ReplyKeyboardMarkup(MAIN_MENU, resize_keyboard=True)
         await update.message.reply_text("يرجى الانتظار 15 ثانية قبل إعادة المحاولة.", reply_markup=reply_markup)
@@ -218,7 +221,6 @@ async def question_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         f"نص الاستفسار:\n{question}\n\n"
         f"يرجى اختيار الإجراء:"
     )
-    # تفعيل حماية إعادة التوجيه
     await update.message.reply_text(
         "تم إرسال استفسارك للمحامي المختص.\n"
         "سيتم إعلامك عند الموافقة على طلبك.\n\n"
@@ -233,10 +235,18 @@ async def question_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def lawyer_callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     data = query.data
-    print("callback data:", data)
-    await query.answer()
+    user_id = query.from_user.id
+    # الإدمن مستثنى
+    if user_id != LAWYER_USER_ID:
+        if data.startswith("contact_"):
+            action_name = data.split("_")[1]
+            now = int(time.time())
+            last_contact = context.user_data.get(f'last_action_time_contact_{action_name}', 0)
+            if now - last_contact < 15:
+                await query.answer("يرجى الانتظار 15 ثانية قبل المحاولة مرة أخرى.", show_alert=True)
+                return
+            context.user_data[f'last_action_time_contact_{action_name}'] = now
 
-    # المحامي فقط يمكنه الموافقة أو الرفض
     if (data.startswith("approve_") or data.startswith("reject_")) and query.from_user.id != LAWYER_USER_ID:
         await query.answer("غير مصرح لك بهذا الإجراء", show_alert=True)
         return
@@ -267,7 +277,6 @@ async def lawyer_callback_handler(update: Update, context: ContextTypes.DEFAULT_
                     "بعد التحويل يمكنك اختيار طريقة التواصل التي تناسبك بالضغط على الزر المناسب 👇"
                 )
             try:
-                # تفعيل حماية إعادة التوجيه
                 await context.bot.send_message(
                     chat_id=user_id,
                     text=accept_message,
@@ -301,20 +310,10 @@ async def lawyer_callback_handler(update: Update, context: ContextTypes.DEFAULT_
             await query.edit_message_text("لم يتم العثور على هذا الاستفسار.")
         return
 
-    # أزرار التواصل متاحة للجميع (يمكن تطبيق حماية بسيطة هنا أيضا للمستخدمين غير الادمن)
     if data.startswith("contact_"):
-        user_id = query.from_user.id
-        if user_id != LAWYER_USER_ID:
-            now = int(time.time())
-            last_contact = context.user_data.get('last_contact_time', 0)
-            if now - last_contact < 15:
-                await query.answer("يرجى الانتظار 15 ثانية قبل المحاولة مرة أخرى.", show_alert=True)
-                return
-            context.user_data['last_contact_time'] = now
         try:
             parts = data.split("_", 2)
             method = parts[1]
-            # تحقق من صحة رقم الواتساب قبل إنشاء الرابط
             if method == "telegram":
                 text = f"اضغط هنا للتواصل عبر التليجرام:\nhttps://t.me/{LAWYER_USERNAME}"
             elif method == "whatsapp":
