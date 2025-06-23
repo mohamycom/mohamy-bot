@@ -17,6 +17,20 @@ from states_enum import States
 
 CHANNEL_USERNAME = "mohamycom_tips"  # اسم قناتك بدون @
 
+# دالة مساعدة لفحص السبام للمستخدمين فقط
+def is_spam(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user_id = update.effective_user.id
+    # إذا كان الادمن لا نطبق حماية السبام
+    if user_id == LAWYER_USER_ID:
+        return False
+    now = int(time.time())
+    last_action = context.user_data.get('last_action_time', 0)
+    # استثناء زر العودة (يتم فحص النص مباشرة في الهاندلرات)
+    if now - last_action < 15:
+        return True
+    context.user_data['last_action_time'] = now
+    return False
+
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     reply_markup = context.bot_data.get('main_menu_markup')
     if not reply_markup:
@@ -29,6 +43,13 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def menu_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     text = update.message.text
+    # حماية سبام (باستثناء العودة)
+    if text != "العودة إلى القائمة الرئيسية" and is_spam(update, context):
+        from telegram import ReplyKeyboardMarkup
+        reply_markup = ReplyKeyboardMarkup(MAIN_MENU, resize_keyboard=True)
+        await update.message.reply_text("يرجى الانتظار 15 ثانية قبل إعادة المحاولة.", reply_markup=reply_markup)
+        return ConversationHandler.END
+
     # تنظيف بيانات الجلسة عند العودة للقائمة الرئيسية
     if text == "العودة إلى القائمة الرئيسية":
         from telegram import ReplyKeyboardMarkup
@@ -82,6 +103,13 @@ async def menu_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def service_type_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     text = update.message.text
+    # حماية سبام
+    if text != "العودة إلى القائمة الرئيسية" and is_spam(update, context):
+        from telegram import ReplyKeyboardMarkup
+        reply_markup = ReplyKeyboardMarkup(SERVICE_OPTIONS, resize_keyboard=True)
+        await update.message.reply_text("يرجى الانتظار 15 ثانية قبل إعادة المحاولة.", reply_markup=reply_markup)
+        return States.SERVICE_TYPE
+
     if text in SERVICE_PRICES:
         context.user_data["selected_service_type"] = text
         service_price = SERVICE_PRICES.get(text)
@@ -112,6 +140,13 @@ async def service_type_handler(update: Update, context: ContextTypes.DEFAULT_TYP
 
 async def paid_service_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     text = update.message.text
+    # حماية سبام
+    if text not in ["العودة إلى القائمة الرئيسية", "إلغاء"] and is_spam(update, context):
+        from telegram import ReplyKeyboardMarkup
+        reply_markup = ReplyKeyboardMarkup(PAID_REPLY_MARKUP.keyboard, resize_keyboard=True)
+        await update.message.reply_text("يرجى الانتظار 15 ثانية قبل إعادة المحاولة.", reply_markup=reply_markup)
+        return States.PAID_SERVICE
+
     if text == "نعم، أوافق":
         await update.message.reply_text(
             "يرجى ملاحظة ما يلي:\n"
@@ -137,6 +172,13 @@ async def paid_service_handler(update: Update, context: ContextTypes.DEFAULT_TYP
 
 async def question_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     text = update.message.text
+    # حماية سبام
+    if text != "العودة إلى القائمة الرئيسية" and is_spam(update, context):
+        from telegram import ReplyKeyboardMarkup
+        reply_markup = ReplyKeyboardMarkup(MAIN_MENU, resize_keyboard=True)
+        await update.message.reply_text("يرجى الانتظار 15 ثانية قبل إعادة المحاولة.", reply_markup=reply_markup)
+        return ConversationHandler.END
+
     if text == "العودة إلى القائمة الرئيسية":
         from telegram import ReplyKeyboardMarkup
         reply_markup = ReplyKeyboardMarkup(MAIN_MENU, resize_keyboard=True)
@@ -176,11 +218,13 @@ async def question_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         f"نص الاستفسار:\n{question}\n\n"
         f"يرجى اختيار الإجراء:"
     )
+    # تفعيل حماية إعادة التوجيه
     await update.message.reply_text(
         "تم إرسال استفسارك للمحامي المختص.\n"
         "سيتم إعلامك عند الموافقة على طلبك.\n\n"
         "⛔️ ملاحظة: يحظر نسخ محتوى الاستشارات القانونية.",
-        reply_markup=ONLY_BACK_MARKUP
+        reply_markup=ONLY_BACK_MARKUP,
+        protect_content=True
     )
     await context.bot.send_message(chat_id=LAWYER_USER_ID, text=msg, reply_markup=lawyer_markup)
     context.user_data.clear()
@@ -192,65 +236,81 @@ async def lawyer_callback_handler(update: Update, context: ContextTypes.DEFAULT_
     print("callback data:", data)
     await query.answer()
 
-    # نتحقق من صلاحية المحامي فقط في حال الموافقة أو الرفض
-    if data.startswith("approve_") or data.startswith("reject_"):
-        if query.from_user.id != LAWYER_USER_ID:
-            await query.answer("غير مصرح لك بهذا الإجراء", show_alert=True)
-            return
-
-        if data.startswith("approve_"):
-            question_id = int(data.replace("approve_", ""))
-            q = get_question_by_id(question_id)
-            if q:
-                user_id = q["user_id"]
-                service_type = q["service_type"]
-                service_price = q["service_price"]
-                service_display = SERVICE_NAMES_DISPLAY.get(service_type, service_type)
-                contact_markup = get_contact_markup(question_id)
-                if service_price is not None:
-                    accept_message = (
-                        "✅ تمت الموافقة على استفسارك من قبل المحامي.\n\n"
-                        f"نوع الخدمة: {service_display}\n"
-                        f"تكلفة الخدمة: {service_price:,} دينار عراقي\n\n"
-                        f"يرجى التحويل الى رقم الحساب الاتي  {ACCOUNT_NUMBER}\n\n"
-                        "بعد التحويل يمكنك اختيار طريقة التواصل التي تناسبك بالضغط على الزر المناسب 👇"
-                    )
-                else:
-                    accept_message = (
-                        "✅ تمت الموافقة على استفسارك من قبل المحامي.\n\n"
-                        f"نوع الخدمة: {service_display}\n"
-                        "تكلفة الخدمة: سيتم إعلامك بالسعر بعد مراجعة المحامي.\n\n"
-                        f"يرجى التحويل الى رقم الحساب الاتي  {ACCOUNT_NUMBER}\n\n"
-                        "بعد التحويل يمكنك اختيار طريقة التواصل التي تناسبك بالضغط على الزر المناسب 👇"
-                    )
-                try:
-                    await context.bot.send_message(chat_id=user_id, text=accept_message, reply_markup=contact_markup)
-                except Exception as e:
-                    await query.edit_message_text(f"حدث خطأ أثناء محاولة إرسال رسالة القبول للمستخدم: {e}")
-                    return
-                await query.edit_message_text("تم إعلام المستخدم بالموافقة.")
-                delete_question(question_id)
-            else:
-                await query.edit_message_text("لم يتم العثور على هذا الاستفسار.")
-        elif data.startswith("reject_"):
-            question_id = int(data.replace("reject_", ""))
-            q = get_question_by_id(question_id)
-            if q:
-                user_id = q["user_id"]
-                await context.bot.send_message(
-                    chat_id=user_id,
-                    text=f"❌ تم رفض استفسارك من قبل المحامي.\n\n"
-                        f"إذا كنت تعتقد أن هناك خطأ أو لديك أي استفسار، يرجى مراسلة حسابنا على التليجرام:\n@{LAWYER_USERNAME}",
-                    reply_markup=ONLY_BACK_MARKUP
-                )
-                delete_question(question_id)
-                await query.edit_message_text("تم إرسال إشعار الرفض للمستخدم.")
-            else:
-                await query.edit_message_text("لم يتم العثور على هذا الاستفسار.")
+    # المحامي فقط يمكنه الموافقة أو الرفض
+    if (data.startswith("approve_") or data.startswith("reject_")) and query.from_user.id != LAWYER_USER_ID:
+        await query.answer("غير مصرح لك بهذا الإجراء", show_alert=True)
         return
 
-    # أزرار التواصل متاحة للجميع
+    if data.startswith("approve_"):
+        question_id = int(data.replace("approve_", ""))
+        q = get_question_by_id(question_id)
+        if q:
+            user_id = q["user_id"]
+            service_type = q["service_type"]
+            service_price = q["service_price"]
+            service_display = SERVICE_NAMES_DISPLAY.get(service_type, service_type)
+            contact_markup = get_contact_markup(question_id)
+            if service_price is not None:
+                accept_message = (
+                    "✅ تمت الموافقة على استفسارك من قبل المحامي.\n\n"
+                    f"نوع الخدمة: {service_display}\n"
+                    f"تكلفة الخدمة: {service_price:,} دينار عراقي\n\n"
+                    f"يرجى التحويل الى رقم الحساب الاتي  {ACCOUNT_NUMBER}\n\n"
+                    "بعد التحويل يمكنك اختيار طريقة التواصل التي تناسبك بالضغط على الزر المناسب 👇"
+                )
+            else:
+                accept_message = (
+                    "✅ تمت الموافقة على استفسارك من قبل المحامي.\n\n"
+                    f"نوع الخدمة: {service_display}\n"
+                    "تكلفة الخدمة: سيتم إعلامك بالسعر بعد مراجعة المحامي.\n\n"
+                    f"يرجى التحويل الى رقم الحساب الاتي  {ACCOUNT_NUMBER}\n\n"
+                    "بعد التحويل يمكنك اختيار طريقة التواصل التي تناسبك بالضغط على الزر المناسب 👇"
+                )
+            try:
+                # تفعيل حماية إعادة التوجيه
+                await context.bot.send_message(
+                    chat_id=user_id,
+                    text=accept_message,
+                    reply_markup=contact_markup,
+                    protect_content=True
+                )
+            except Exception as e:
+                await query.edit_message_text(f"حدث خطأ أثناء محاولة إرسال رسالة القبول للمستخدم: {e}")
+                return
+            await query.edit_message_text("تم إعلام المستخدم بالموافقة.")
+            delete_question(question_id)
+        else:
+            await query.edit_message_text("لم يتم العثور على هذا الاستفسار.")
+        return
+
+    elif data.startswith("reject_"):
+        question_id = int(data.replace("reject_", ""))
+        q = get_question_by_id(question_id)
+        if q:
+            user_id = q["user_id"]
+            await context.bot.send_message(
+                chat_id=user_id,
+                text=f"❌ تم رفض استفسارك من قبل المحامي.\n\n"
+                    f"إذا كنت تعتقد أن هناك خطأ أو لديك أي استفسار، يرجى مراسلة حسابنا على التليجرام:\n@{LAWYER_USERNAME}",
+                reply_markup=ONLY_BACK_MARKUP,
+                protect_content=True
+            )
+            delete_question(question_id)
+            await query.edit_message_text("تم إرسال إشعار الرفض للمستخدم.")
+        else:
+            await query.edit_message_text("لم يتم العثور على هذا الاستفسار.")
+        return
+
+    # أزرار التواصل متاحة للجميع (يمكن تطبيق حماية بسيطة هنا أيضا للمستخدمين غير الادمن)
     if data.startswith("contact_"):
+        user_id = query.from_user.id
+        if user_id != LAWYER_USER_ID:
+            now = int(time.time())
+            last_contact = context.user_data.get('last_contact_time', 0)
+            if now - last_contact < 15:
+                await query.answer("يرجى الانتظار 15 ثانية قبل المحاولة مرة أخرى.", show_alert=True)
+                return
+            context.user_data['last_contact_time'] = now
         try:
             parts = data.split("_", 2)
             method = parts[1]
