@@ -36,17 +36,17 @@ async def menu_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text(WELCOME_MESSAGE, reply_markup=reply_markup)
         context.user_data.clear()
         return ConversationHandler.END
-    elif text == "عن (محامي.كوم)":
+    elif text == "عن (محاميكم)":
         from telegram import ReplyKeyboardMarkup
         reply_markup = ReplyKeyboardMarkup(BACK_TO_MENU, resize_keyboard=True)
         await update.message.reply_text(ABOUT_MESSAGE, reply_markup=reply_markup)
         return ConversationHandler.END
-    elif text == "خدماتنا المدفوعة":
+    elif text == "تواصل مع محامي":
         from telegram import ReplyKeyboardMarkup
         reply_markup = ReplyKeyboardMarkup(SERVICE_OPTIONS, resize_keyboard=True)
         await update.message.reply_text(
             "🟢 الخدمة المدفوعة - استشارة خاصة\n\n"
-            "- هذه الخدمة مخصصة للاستشارات القانونية الحساسة التي تحتاج إلى إجابة من مختصين ذوي خبرة.\n\n"
+            "-  هذه الخدمة خاصة ، من خلال التواصل مع محامي مختص يمكنك استعراض كافة وقائع الاستفسار للحصول على استشارة دقيقة ومحددة.\n\n"
             "اختر من القائمة أدناه نوع الخدمة بالتحديد:",
             reply_markup=reply_markup
         )
@@ -60,12 +60,12 @@ async def menu_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             ])
         )
         return ConversationHandler.END
-    elif text == "استشارات قانونية (تلقائية)":
+    elif text == "استشارات فورية":
         url = "https://t.me/IrMoLaBot"
         await update.message.reply_text(
-            "للحصول على استشارة قانونية تلقائية مباشرة، اضغط الزر أدناه للدخول إلى البوت:",
+            "للحصول على استشارة قانونية فورية مباشرة، اضغط الزر أدناه للدخول إلى المنصة:",
             reply_markup=InlineKeyboardMarkup([
-                [InlineKeyboardButton("الدخول إلى بوت الاستشارات", url=url)]
+                [InlineKeyboardButton("الدخول إلى منصة الاستشارات", url=url)]
             ])
         )
         return ConversationHandler.END
@@ -92,7 +92,7 @@ async def service_type_handler(update: Update, context: ContextTypes.DEFAULT_TYP
             price_msg = "- تكلفة الاستشارة: سيتم تحديدها بعد مراجعة المحامي."
         await update.message.reply_text(
             f"🟢 الخدمة المدفوعة - {service_display}\n\n"
-            "- هذه الخدمة مخصصة للاستشارات القانونية الحساسة التي تحتاج إلى إجابة من مختصين ذوي خبرة.\n"
+            "- هذه الخدمة خاصة ، من خلال التواصل مع محامي مختص يمكنك استعراض كافة وقائع الاستفسار للحصول على استشارة دقيقة ومحددة.\n"
             f"{price_msg}\n"
             "هل توافق على الشروط وتريد متابعة طلب الاستشارة؟",
             reply_markup=PAID_REPLY_MARKUP
@@ -115,8 +115,8 @@ async def paid_service_handler(update: Update, context: ContextTypes.DEFAULT_TYP
     if text == "نعم، أوافق":
         await update.message.reply_text(
             "يرجى ملاحظة ما يلي:\n"
-            "1. ان طريقة تحويل الاموال تتم في الوقت الحالي عبر تطبيق سوبر كي المدعوم من قبل مصرف الرافدين ولاتتوفر طريقة دفع اخرى .\n"
-            "2. كتابة  الاستفسار كاملا برسالة واحدة وعدم اجتزاءه برسائل متعددة.\n"
+            "1. ان طريقة الدفع تتم في الوقت الحالي عبر تطبيق (سوبر كي) المدعوم من قبل مصرف الرافدين ولاتتوفر طريقة دفع اخرى .\n"
+            "2. يرجى كتابة  الاستفسار كاملا برسالة واحدة وعدم اجتزاءه برسائل متعددة.\n"
             "3. ستتم مراجعة الاستفسار من قبل محامين متخصصين وفي حال الموافقة سيتم ارسال اشعار اليكم بذلك متضمنا كيفية الدفع .\n"
             "شكرا لتفهمكم",
             reply_markup=ONLY_BACK_MARKUP
@@ -178,7 +178,8 @@ async def question_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     )
     await update.message.reply_text(
         "تم إرسال استفسارك للمحامي المختص.\n"
-        "سيتم إعلامك عند الموافقة على طلبك.",
+        "سيتم إعلامك عند الموافقة على طلبك.\n\n"
+        "⛔️ ملاحظة: يحظر نسخ محتوى الاستشارات القانونية.",
         reply_markup=ONLY_BACK_MARKUP
     )
     await context.bot.send_message(chat_id=LAWYER_USER_ID, text=msg, reply_markup=lawyer_markup)
