@@ -17,7 +17,6 @@ from states_enum import States
 
 CHANNEL_USERNAME = "mohamycom_tips"  # اسم قناتك بدون @
 
-# حماية سبام لكل زر/خدمة بشكل مستقل
 def is_spam_per_action(update, context, action_name):
     user_id = update.effective_user.id
     if user_id == LAWYER_USER_ID:
@@ -35,7 +34,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         from telegram import ReplyKeyboardMarkup
         reply_markup = ReplyKeyboardMarkup(MAIN_MENU, resize_keyboard=True)
         context.bot_data['main_menu_markup'] = reply_markup
-    await update.message.reply_text(WELCOME_MESSAGE, reply_markup=reply_markup)
+    await update.message.reply_text(WELCOME_MESSAGE, reply_markup=reply_markup, protect_content=True)
     context.user_data.clear()
 
 async def menu_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -51,19 +50,19 @@ async def menu_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if text != "العودة إلى القائمة الرئيسية" and is_spam_per_action(update, context, action_name):
         from telegram import ReplyKeyboardMarkup
         reply_markup = ReplyKeyboardMarkup(MAIN_MENU, resize_keyboard=True)
-        await update.message.reply_text("يرجى الانتظار 15 ثانية قبل إعادة المحاولة.", reply_markup=reply_markup)
+        await update.message.reply_text("يرجى الانتظار 15 ثانية قبل إعادة المحاولة.", reply_markup=reply_markup, protect_content=True)
         return ConversationHandler.END
 
     if text == "العودة إلى القائمة الرئيسية":
         from telegram import ReplyKeyboardMarkup
         reply_markup = ReplyKeyboardMarkup(MAIN_MENU, resize_keyboard=True)
-        await update.message.reply_text(WELCOME_MESSAGE, reply_markup=reply_markup)
+        await update.message.reply_text(WELCOME_MESSAGE, reply_markup=reply_markup, protect_content=True)
         context.user_data.clear()
         return ConversationHandler.END
     elif text == "عن (محاميكم)":
         from telegram import ReplyKeyboardMarkup
         reply_markup = ReplyKeyboardMarkup(BACK_TO_MENU, resize_keyboard=True)
-        await update.message.reply_text(ABOUT_MESSAGE, reply_markup=reply_markup)
+        await update.message.reply_text(ABOUT_MESSAGE, reply_markup=reply_markup, protect_content=True)
         return ConversationHandler.END
     elif text == "تواصل مع محامي":
         from telegram import ReplyKeyboardMarkup
@@ -72,7 +71,8 @@ async def menu_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             "🟢 الخدمة المدفوعة - استشارة خاصة\n\n"
             "-  هذه الخدمة خاصة ، من خلال التواصل مع محامي مختص يمكنك استعراض كافة وقائع الاستفسار للحصول على استشارة دقيقة ومحددة.\n\n"
             "اختر من القائمة أدناه نوع الخدمة بالتحديد:",
-            reply_markup=reply_markup
+            reply_markup=reply_markup,
+            protect_content=True
         )
         return States.SERVICE_TYPE
     elif text == "نصائح وارشادات قانونية":
@@ -81,7 +81,8 @@ async def menu_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             "اضغط أدناه لرؤية مختلف النصائح القانونية:",
             reply_markup=InlineKeyboardMarkup([
                 [InlineKeyboardButton("الدخول للقناة", url=url)]
-            ])
+            ]),
+            protect_content=True
         )
         return ConversationHandler.END
     elif text == "استشارات فورية":
@@ -90,18 +91,19 @@ async def menu_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             "للحصول على استشارة قانونية فورية مباشرة، اضغط الزر أدناه للدخول إلى المنصة:",
             reply_markup=InlineKeyboardMarkup([
                 [InlineKeyboardButton("الدخول إلى منصة الاستشارات", url=url)]
-            ])
+            ]),
+            protect_content=True
         )
         return ConversationHandler.END
     elif text in sum(MAIN_MENU, []):
         from telegram import ReplyKeyboardMarkup
         reply_markup = ReplyKeyboardMarkup(BACK_TO_MENU, resize_keyboard=True)
-        await update.message.reply_text("سيتم تفعيل الخدمة قريبا", reply_markup=reply_markup)
+        await update.message.reply_text("سيتم تفعيل الخدمة قريبا", reply_markup=reply_markup, protect_content=True)
         return ConversationHandler.END
     else:
         from telegram import ReplyKeyboardMarkup
         reply_markup = ReplyKeyboardMarkup(MAIN_MENU, resize_keyboard=True)
-        await update.message.reply_text("❗️عذراً، لم أفهم طلبك. يرجى اختيار أحد الخيارات من القائمة بالأسفل.", reply_markup=reply_markup)
+        await update.message.reply_text(❗️عذراً، لم أفهم طلبك. يرجى اختيار أحد الخيارات من القائمة بالأسفل.", reply_markup=reply_markup, protect_content=True)
         return ConversationHandler.END
 
 async def service_type_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -110,7 +112,7 @@ async def service_type_handler(update: Update, context: ContextTypes.DEFAULT_TYP
     if text != "العودة إلى القائمة الرئيسية" and is_spam_per_action(update, context, action_name):
         from telegram import ReplyKeyboardMarkup
         reply_markup = ReplyKeyboardMarkup(SERVICE_OPTIONS, resize_keyboard=True)
-        await update.message.reply_text("يرجى الانتظار 15 ثانية قبل إعادة المحاولة.", reply_markup=reply_markup)
+        await update.message.reply_text("يرجى الانتظار 15 ثانية قبل إعادة المحاولة.", reply_markup=reply_markup, protect_content=True)
         return States.SERVICE_TYPE
 
     if text in SERVICE_PRICES:
@@ -126,19 +128,20 @@ async def service_type_handler(update: Update, context: ContextTypes.DEFAULT_TYP
             "- هذه الخدمة خاصة ، من خلال التواصل مع محامي مختص يمكنك استعراض كافة وقائع الاستفسار للحصول على استشارة دقيقة ومحددة.\n"
             f"{price_msg}\n"
             "هل توافق على الشروط وتريد متابعة طلب الاستشارة؟",
-            reply_markup=PAID_REPLY_MARKUP
+            reply_markup=PAID_REPLY_MARKUP,
+            protect_content=True
         )
         return States.PAID_SERVICE
     elif text == "العودة إلى القائمة الرئيسية":
         from telegram import ReplyKeyboardMarkup
         reply_markup = ReplyKeyboardMarkup(MAIN_MENU, resize_keyboard=True)
-        await update.message.reply_text(WELCOME_MESSAGE, reply_markup=reply_markup)
+        await update.message.reply_text(WELCOME_MESSAGE, reply_markup=reply_markup, protect_content=True)
         context.user_data.clear()
         return ConversationHandler.END
     else:
         from telegram import ReplyKeyboardMarkup
         reply_markup = ReplyKeyboardMarkup(SERVICE_OPTIONS, resize_keyboard=True)
-        await update.message.reply_text("يرجى اختيار نوع خدمة من القائمة أو العودة.", reply_markup=reply_markup)
+        await update.message.reply_text("يرجى اختيار نوع خدمة من القائمة أو العودة.", reply_markup=reply_markup, protect_content=True)
         return States.SERVICE_TYPE
 
 async def paid_service_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -147,7 +150,7 @@ async def paid_service_handler(update: Update, context: ContextTypes.DEFAULT_TYP
     if text not in ["العودة إلى القائمة الرئيسية", "إلغاء"] and is_spam_per_action(update, context, action_name):
         from telegram import ReplyKeyboardMarkup
         reply_markup = ReplyKeyboardMarkup(PAID_REPLY_MARKUP.keyboard, resize_keyboard=True)
-        await update.message.reply_text("يرجى الانتظار 15 ثانية قبل إعادة المحاولة.", reply_markup=reply_markup)
+        await update.message.reply_text("يرجى الانتظار 15 ثانية قبل إعادة المحاولة.", reply_markup=reply_markup, protect_content=True)
         return States.PAID_SERVICE
 
     if text == "نعم، أوافق":
@@ -157,19 +160,20 @@ async def paid_service_handler(update: Update, context: ContextTypes.DEFAULT_TYP
             "2. يرجى كتابة  الاستفسار كاملا برسالة واحدة وعدم اجتزاءه برسائل متعددة.\n"
             "3. ستتم مراجعة الاستفسار من قبل محامين متخصصين وفي حال الموافقة سيتم ارسال اشعار اليكم بذلك متضمنا كيفية الدفع .\n"
             "شكرا لتفهمكم",
-            reply_markup=ONLY_BACK_MARKUP
+            reply_markup=ONLY_BACK_MARKUP,
+            protect_content=True
         )
         return States.WAITING_QUESTION
     elif text == "العودة إلى القائمة الرئيسية":
         from telegram import ReplyKeyboardMarkup
         reply_markup = ReplyKeyboardMarkup(MAIN_MENU, resize_keyboard=True)
-        await update.message.reply_text(WELCOME_MESSAGE, reply_markup=reply_markup)
+        await update.message.reply_text(WELCOME_MESSAGE, reply_markup=reply_markup, protect_content=True)
         context.user_data.clear()
         return ConversationHandler.END
     else:
         from telegram import ReplyKeyboardMarkup
         reply_markup = ReplyKeyboardMarkup(MAIN_MENU, resize_keyboard=True)
-        await update.message.reply_text("تم إلغاء الطلب.", reply_markup=reply_markup)
+        await update.message.reply_text("تم إلغاء الطلب.", reply_markup=reply_markup, protect_content=True)
         context.user_data.clear()
         return ConversationHandler.END
 
@@ -179,13 +183,13 @@ async def question_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if text != "العودة إلى القائمة الرئيسية" and is_spam_per_action(update, context, action_name):
         from telegram import ReplyKeyboardMarkup
         reply_markup = ReplyKeyboardMarkup(MAIN_MENU, resize_keyboard=True)
-        await update.message.reply_text("يرجى الانتظار 15 ثانية قبل إعادة المحاولة.", reply_markup=reply_markup)
+        await update.message.reply_text("يرجى الانتظار 15 ثانية قبل إعادة المحاولة.", reply_markup=reply_markup, protect_content=True)
         return ConversationHandler.END
 
     if text == "العودة إلى القائمة الرئيسية":
         from telegram import ReplyKeyboardMarkup
         reply_markup = ReplyKeyboardMarkup(MAIN_MENU, resize_keyboard=True)
-        await update.message.reply_text(WELCOME_MESSAGE, reply_markup=reply_markup)
+        await update.message.reply_text(WELCOME_MESSAGE, reply_markup=reply_markup, protect_content=True)
         context.user_data.clear()
         return ConversationHandler.END
 
@@ -199,7 +203,8 @@ async def question_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         reply_markup = ReplyKeyboardMarkup(MAIN_MENU, resize_keyboard=True)
         await update.message.reply_text(
             "لقد أرسلت استفسارًا مؤخرًا. يرجى الانتظار 5 دقائق قبل إرسال استفسار جديد.",
-            reply_markup=reply_markup
+            reply_markup=reply_markup,
+            protect_content=True
         )
         context.user_data.clear()
         return ConversationHandler.END
@@ -228,7 +233,7 @@ async def question_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         reply_markup=ONLY_BACK_MARKUP,
         protect_content=True
     )
-    await context.bot.send_message(chat_id=LAWYER_USER_ID, text=msg, reply_markup=lawyer_markup)
+    await context.bot.send_message(chat_id=LAWYER_USER_ID, text=msg, reply_markup=lawyer_markup, protect_content=True)
     context.user_data.clear()
     return ConversationHandler.END
 
@@ -236,7 +241,6 @@ async def lawyer_callback_handler(update: Update, context: ContextTypes.DEFAULT_
     query = update.callback_query
     data = query.data
     user_id = query.from_user.id
-    # الإدمن مستثنى
     if user_id != LAWYER_USER_ID:
         if data.startswith("contact_"):
             action_name = data.split("_")[1]
@@ -284,12 +288,12 @@ async def lawyer_callback_handler(update: Update, context: ContextTypes.DEFAULT_
                     protect_content=True
                 )
             except Exception as e:
-                await query.edit_message_text(f"حدث خطأ أثناء محاولة إرسال رسالة القبول للمستخدم: {e}")
+                await query.edit_message_text(f"حدث خطأ أثناء محاولة إرسال رسالة القبول للمستخدم: {e}", protect_content=True)
                 return
-            await query.edit_message_text("تم إعلام المستخدم بالموافقة.")
+            await query.edit_message_text("تم إعلام المستخدم بالموافقة.", protect_content=True)
             delete_question(question_id)
         else:
-            await query.edit_message_text("لم يتم العثور على هذا الاستفسار.")
+            await query.edit_message_text("لم يتم العثور على هذا الاستفسار.", protect_content=True)
         return
 
     elif data.startswith("reject_"):
@@ -305,9 +309,9 @@ async def lawyer_callback_handler(update: Update, context: ContextTypes.DEFAULT_
                 protect_content=True
             )
             delete_question(question_id)
-            await query.edit_message_text("تم إرسال إشعار الرفض للمستخدم.")
+            await query.edit_message_text("تم إرسال إشعار الرفض للمستخدم.", protect_content=True)
         else:
-            await query.edit_message_text("لم يتم العثور على هذا الاستفسار.")
+            await query.edit_message_text("لم يتم العثور على هذا الاستفسار.", protect_content=True)
         return
 
     if data.startswith("contact_"):
@@ -319,7 +323,7 @@ async def lawyer_callback_handler(update: Update, context: ContextTypes.DEFAULT_
             elif method == "whatsapp":
                 number = LAWYER_WHATSAPP.strip().replace("+", "").replace(" ", "")
                 if not re.match(r'^[0-9]{8,15}$', number):
-                    await query.message.reply_text("رقم الواتساب غير صحيح.")
+                    await query.message.reply_text("رقم الواتساب غير صحيح.", protect_content=True)
                     return
                 if number.startswith("0"):
                     number = "964" + number[1:]
@@ -330,9 +334,9 @@ async def lawyer_callback_handler(update: Update, context: ContextTypes.DEFAULT_
                 text = f"اضغط هنا لإرسال بريد إلكتروني:\nmailto:{LAWYER_EMAIL}"
             else:
                 text = "طريقة التواصل غير معروفة."
-            await query.message.reply_text(text)
+            await query.message.reply_text(text, protect_content=True)
         except Exception as e:
-            await query.message.reply_text(f"حدث خطأ داخلي: {e}")
+            await query.message.reply_text(f"حدث خطأ داخلي: {e}", protect_content=True)
 
 async def error_handler(update: object, context: ContextTypes.DEFAULT_TYPE):
     print(f"حدث خطأ: {context.error}")
