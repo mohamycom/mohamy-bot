@@ -68,7 +68,7 @@ async def menu_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         from telegram import ReplyKeyboardMarkup
         reply_markup = ReplyKeyboardMarkup(SERVICE_OPTIONS, resize_keyboard=True)
         await update.message.reply_text(
-            "🟢 الخدمة المدفوعة - استشارة خاصة\n\n"
+            "🟢 الخدمة المدفوعة ( استشارة خاصة)\n\n"
             "-  هذه الخدمة خاصة ، من خلال التواصل مع محامي مختص يمكنك استعراض كافة وقائع الاستفسار للحصول على استشارة دقيقة ومحددة.\n\n"
             "اختر من القائمة أدناه نوع الخدمة بالتحديد:",
             reply_markup=reply_markup,
@@ -88,7 +88,7 @@ async def menu_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     elif text == "استشارات فورية":
         url = "https://t.me/IrMoLaBot"
         await update.message.reply_text(
-            "للحصول على استشارة قانونية فورية مباشرة، اضغط الزر أدناه للدخول إلى المنصة:",
+            "للحصول على استشارة قانونية فورية ، اضغط الزر أدناه للدخول إلى المنصة:",
             reply_markup=InlineKeyboardMarkup([
                 [InlineKeyboardButton("الدخول إلى منصة الاستشارات", url=url)]
             ]),
