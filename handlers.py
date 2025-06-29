@@ -233,110 +233,118 @@ async def question_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         reply_markup=ONLY_BACK_MARKUP,
         protect_content=True
     )
-    await context.bot.send_message(chat_id=LAWYER_USER_ID, text=msg, reply_markup=lawyer_markup, protect_content=True)
+    await context.bot.send_message(chat_id=LAWYER_USER_ID, text=msg, reply_markup=lawyer_markup)
     context.user_data.clear()
     return ConversationHandler.END
 
 async def lawyer_callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
-    data = query.data
-    user_id = query.from_user.id
-    if user_id != LAWYER_USER_ID:
-        if data.startswith("contact_"):
-            action_name = data.split("_")[1]
-            now = int(time.time())
-            last_contact = context.user_data.get(f'last_action_time_contact_{action_name}', 0)
-            if now - last_contact < 15:
-                await query.answer("يرجى الانتظار 15 ثانية قبل المحاولة مرة أخرى.", show_alert=True)
-                return
-            context.user_data[f'last_action_time_contact_{action_name}'] = now
+    await query.answer()
+    try:
+        data = query.data
+        user_id = query.from_user.id
+        if user_id != LAWYER_USER_ID:
+            if data.startswith("contact_"):
+                action_name = data.split("_")[1]
+                now = int(time.time())
+                last_contact = context.user_data.get(f'last_action_time_contact_{action_name}', 0)
+                if now - last_contact < 15:
+                    await query.answer("يرجى الانتظار 15 ثانية قبل المحاولة مرة أخرى.", show_alert=True)
+                    return
+                context.user_data[f'last_action_time_contact_{action_name}'] = now
 
-    if (data.startswith("approve_") or data.startswith("reject_")) and query.from_user.id != LAWYER_USER_ID:
-        await query.answer("غير مصرح لك بهذا الإجراء", show_alert=True)
-        return
+        if (data.startswith("approve_") or data.startswith("reject_")) and query.from_user.id != LAWYER_USER_ID:
+            await query.answer("غير مصرح لك بهذا الإجراء", show_alert=True)
+            return
 
-    if data.startswith("approve_"):
-        question_id = int(data.replace("approve_", ""))
-        q = get_question_by_id(question_id)
-        if q:
-            user_id = q["user_id"]
-            service_type = q["service_type"]
-            service_price = q["service_price"]
-            service_display = SERVICE_NAMES_DISPLAY.get(service_type, service_type)
-            contact_markup = get_contact_markup(question_id)
-            if service_price is not None:
-                accept_message = (
-                    "✅ تمت الموافقة على استفسارك من قبل المحامي.\n\n"
-                    f"نوع الخدمة: {service_display}\n"
-                    f"تكلفة الخدمة: {service_price:,} دينار عراقي\n\n"
-                    f"يرجى التحويل الى رقم الحساب الاتي  {ACCOUNT_NUMBER}\n\n"
-                    "بعد التحويل يمكنك اختيار طريقة التواصل التي تناسبك بالضغط على الزر المناسب 👇"
+        if data.startswith("approve_"):
+            question_id = int(data.replace("approve_", ""))
+            q = get_question_by_id(question_id)
+            if q:
+                user_id = q["user_id"]
+                service_type = q["service_type"]
+                service_price = q["service_price"]
+                service_display = SERVICE_NAMES_DISPLAY.get(service_type, service_type)
+                contact_markup = get_contact_markup(question_id)
+                if service_price is not None:
+                    accept_message = (
+                        "✅ تمت الموافقة على استفسارك من قبل المحامي.\n\n"
+                        f"نوع الخدمة: {service_display}\n"
+                        f"تكلفة الخدمة: {service_price:,} دينار عراقي\n\n"
+                        f"يرجى التحويل الى رقم الحساب الاتي  {ACCOUNT_NUMBER}\n\n"
+                        "بعد التحويل يمكنك اختيار طريقة التواصل التي تناسبك بالضغط على الزر المناسب 👇"
+                    )
+                else:
+                    accept_message = (
+                        "✅ تمت الموافقة على استفسارك من قبل المحامي.\n\n"
+                        f"نوع الخدمة: {service_display}\n"
+                        "تكلفة الخدمة: سيتم إعلامك بالسعر بعد مراجعة المحامي.\n\n"
+                        f"يرجى التحويل الى رقم الحساب الاتي  {ACCOUNT_NUMBER}\n\n"
+                        "بعد التحويل يمكنك اختيار طريقة التواصل التي تناسبك بالضغط على الزر المناسب 👇"
+                    )
+                try:
+                    await context.bot.send_message(
+                        chat_id=user_id,
+                        text=accept_message,
+                        reply_markup=contact_markup,
+                        protect_content=True
+                    )
+                except Exception as e:
+                    await query.edit_message_text(f"حدث خطأ أثناء محاولة إرسال رسالة القبول للمستخدم: {e}")
+                    return
+                await query.edit_message_text(
+                    f"{query.message.text}\n\n✅ تم إعلام المستخدم بالموافقة."
                 )
+                delete_question(question_id)
             else:
-                accept_message = (
-                    "✅ تمت الموافقة على استفسارك من قبل المحامي.\n\n"
-                    f"نوع الخدمة: {service_display}\n"
-                    "تكلفة الخدمة: سيتم إعلامك بالسعر بعد مراجعة المحامي.\n\n"
-                    f"يرجى التحويل الى رقم الحساب الاتي  {ACCOUNT_NUMBER}\n\n"
-                    "بعد التحويل يمكنك اختيار طريقة التواصل التي تناسبك بالضغط على الزر المناسب 👇"
-                )
-            try:
+                await query.edit_message_text("لم يتم العثور على هذا الاستفسار.")
+            return
+
+        elif data.startswith("reject_"):
+            question_id = int(data.replace("reject_", ""))
+            q = get_question_by_id(question_id)
+            if q:
+                user_id = q["user_id"]
                 await context.bot.send_message(
                     chat_id=user_id,
-                    text=accept_message,
-                    reply_markup=contact_markup,
+                    text=f"❌ تم رفض استفسارك من قبل المحامي.\n\n"
+                        f"إذا كنت تعتقد أن هناك خطأ أو لديك أي استفسار، يرجى مراسلة حسابنا على التليجرام:\n@{LAWYER_USERNAME}",
+                    reply_markup=ONLY_BACK_MARKUP,
                     protect_content=True
                 )
-            except Exception as e:
-                await query.edit_message_text(f"حدث خطأ أثناء محاولة إرسال رسالة القبول للمستخدم: {e}", protect_content=True)
-                return
-            await query.edit_message_text("تم إعلام المستخدم بالموافقة.", protect_content=True)
-            delete_question(question_id)
-        else:
-            await query.edit_message_text("لم يتم العثور على هذا الاستفسار.", protect_content=True)
-        return
-
-    elif data.startswith("reject_"):
-        question_id = int(data.replace("reject_", ""))
-        q = get_question_by_id(question_id)
-        if q:
-            user_id = q["user_id"]
-            await context.bot.send_message(
-                chat_id=user_id,
-                text=f"❌ تم رفض استفسارك من قبل المحامي.\n\n"
-                    f"إذا كنت تعتقد أن هناك خطأ أو لديك أي استفسار، يرجى مراسلة حسابنا على التليجرام:\n@{LAWYER_USERNAME}",
-                reply_markup=ONLY_BACK_MARKUP,
-                protect_content=True
-            )
-            delete_question(question_id)
-            await query.edit_message_text("تم إرسال إشعار الرفض للمستخدم.", protect_content=True)
-        else:
-            await query.edit_message_text("لم يتم العثور على هذا الاستفسار.", protect_content=True)
-        return
-
-    if data.startswith("contact_"):
-        try:
-            parts = data.split("_", 2)
-            method = parts[1]
-            if method == "telegram":
-                text = f"اضغط هنا للتواصل عبر التليجرام:\nhttps://t.me/{LAWYER_USERNAME}"
-            elif method == "whatsapp":
-                number = LAWYER_WHATSAPP.strip().replace("+", "").replace(" ", "")
-                if not re.match(r'^[0-9]{8,15}$', number):
-                    await query.message.reply_text("رقم الواتساب غير صحيح.", protect_content=True)
-                    return
-                if number.startswith("0"):
-                    number = "964" + number[1:]
-                elif not number.startswith("964"):
-                    number = "964" + number
-                text = f"اضغط هنا للتواصل عبر الواتساب:\nhttps://wa.me/{number}"
-            elif method == "email":
-                text = f"اضغط هنا لإرسال بريد إلكتروني:\nmailto:{LAWYER_EMAIL}"
+                delete_question(question_id)
+                await query.edit_message_text(
+                    f"{query.message.text}\n\n❌ تم إرسال إشعار الرفض للمستخدم."
+                )
             else:
-                text = "طريقة التواصل غير معروفة."
-            await query.message.reply_text(text, protect_content=True)
-        except Exception as e:
-            await query.message.reply_text(f"حدث خطأ داخلي: {e}", protect_content=True)
+                await query.edit_message_text("لم يتم العثور على هذا الاستفسار.")
+            return
+
+        if data.startswith("contact_"):
+            try:
+                parts = data.split("_", 2)
+                method = parts[1]
+                if method == "telegram":
+                    text = f"اضغط هنا للتواصل عبر التليجرام:\nhttps://t.me/{LAWYER_USERNAME}"
+                elif method == "whatsapp":
+                    number = LAWYER_WHATSAPP.strip().replace("+", "").replace(" ", "")
+                    if not re.match(r'^[0-9]{8,15}$', number):
+                        await query.message.reply_text("رقم الواتساب غير صحيح.")
+                        return
+                    if number.startswith("0"):
+                        number = "964" + number[1:]
+                    elif not number.startswith("964"):
+                        number = "964" + number
+                    text = f"اضغط هنا للتواصل عبر الواتساب:\nhttps://wa.me/{number}"
+                elif method == "email":
+                    text = f"اضغط هنا لإرسال بريد إلكتروني:\nmailto:{LAWYER_EMAIL}"
+                else:
+                    text = "طريقة التواصل غير معروفة."
+                await query.message.reply_text(text)
+            except Exception as e:
+                await query.message.reply_text(f"حدث خطأ داخلي: {e}")
+    except Exception as e:
+        await query.message.reply_text(f"حدث خطأ داخلي: {e}")
 
 async def error_handler(update: object, context: ContextTypes.DEFAULT_TYPE):
     print(f"حدث خطأ: {context.error}")
